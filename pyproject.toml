@@ -1,0 +1,17 @@
+[project]
+name = "mcp-demo"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp",
+    "httpx",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 100

@@ -1,13 +1,13 @@
 # Implementation Tasks
 *Delivery Manager MCP Server*
 
-Derived from `engineering_spec.md`. Each task bundles code and test work; status reflects the combined state. A task is not complete until all tests pass. Completed tasks are committed and pushed before the next task begins.
+Derived from `engineering_spec.md`. Each task bundles code and test work; status reflects the combined state. A task is not complete until all tests pass. Completed tasks are committed and pushed before the next task begins.  At the beginning of any task, verify that the previous task was actually committed.
 
 **Statuses:** `pending` · `in-progress` · `code-complete` · `in-testing` · `complete`
 
 ---
 
-### 1. Project scaffold — `pending`
+### 1. Project scaffold — `complete`
 
 `pyproject.toml` with runtime and dev dependencies (`fastmcp`, `httpx`, `pytest`, `ruff`). `data/` and `tests/` directories.
 
