@@ -29,7 +29,7 @@ The script installs the pinned Claude Code version, installs Python dependencies
 ./stop.sh
 ```
 
-Execution incurs an inference cost of ~$0.11 using Sonnet 4.6 (May, 2026).
+Execution incurs an inference cost of ~$0.05–0.07 using Sonnet 4.6 (May 2026). The dominant cost is Claude Code's own session context (~49k tokens loaded per invocation), not the demo prompt itself.
 
 ---
 

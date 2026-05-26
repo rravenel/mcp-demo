@@ -188,13 +188,16 @@ def _run_claude(cmd: list[str]) -> str:
     return raw
 
 
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
+
 def run_claude_p(prompt_text: str, session_uuid: str) -> str:
-    cmd = ["claude", "-p", "--session-id", session_uuid, "--output-format", "json", prompt_text]
+    cmd = ["claude", "-p", "--model", CLAUDE_MODEL, "--session-id", session_uuid, "--output-format", "json", prompt_text]
     return _run_claude(cmd)
 
 
 def run_claude_p_resume(session_uuid: str, message: str) -> str:
-    cmd = ["claude", "-p", "--resume", session_uuid, "--output-format", "json", message]
+    cmd = ["claude", "-p", "--model", CLAUDE_MODEL, "--resume", session_uuid, "--output-format", "json", message]
     return _run_claude(cmd)
 
 
