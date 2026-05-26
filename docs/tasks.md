@@ -63,7 +63,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 9. Configuration files — `pending`
+### 9. Configuration files — `complete`
 
 `.mcp.json`: Claude Code MCP server registration.  
 `.claude-code-version`: pinned Claude Code CLI version.
