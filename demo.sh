@@ -7,7 +7,7 @@ if ! command -v claude &>/dev/null; then
 fi
 
 VERSION=$(cat .claude-code-version)
-claude update "$VERSION"
+claude install "$VERSION"
 
 uv sync
 
