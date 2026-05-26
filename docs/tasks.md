@@ -49,7 +49,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 7. `accounts://all` resource — `pending`
+### 7. `accounts://all` resource — `complete`
 
 `server.py`: resource handler.  
 `tests/test_resource.py`: resource tests.

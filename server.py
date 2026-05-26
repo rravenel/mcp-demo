@@ -54,6 +54,15 @@ def get_task(task_id: str) -> dict:
         conn.close()
 
 
+@mcp.resource("accounts://all")
+def accounts_all() -> list:
+    conn = db.get_connection()
+    try:
+        return db.fetch_all_accounts_with_context(conn)
+    finally:
+        conn.close()
+
+
 _VALID_STATUSES = {"open", "in_progress", "pending_customer", "blocked", "complete", "invalid"}
 
 
