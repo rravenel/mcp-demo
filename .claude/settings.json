@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venv/bin/python scratch.py)"
+      "Bash(.venv/bin/python scratch.py)",
+      "mcp__delivery-manager__get_account_status",
+      "mcp__delivery-manager__get_task",
+      "mcp__delivery-manager__update_task_status"
     ]
   }
 }
