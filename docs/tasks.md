@@ -23,42 +23,42 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ### 3. Server scaffold — `complete`
 
-`server.py`: `FastMCP` app instance, HTTP transport on port 8000, `GET /health` route.  
-`tests/test_server.py`: health endpoint test.
+`mcp_demo_server.py`: `FastMCP` app instance, HTTP transport on port 8000, `GET /health` route.  
+`tests/test_mcp_demo_server.py`: health endpoint test.
 
 ---
 
 ### 4. `get_account_status` tool — `complete`
 
-`server.py`: `get_account_status` handler.  
+`mcp_demo_server.py`: `get_account_status` handler.  
 `tests/test_tools.py`: `get_account_status` tests.
 
 ---
 
 ### 5. `get_task` tool — `complete`
 
-`server.py`: `get_task` handler.  
+`mcp_demo_server.py`: `get_task` handler.  
 `tests/test_tools.py`: `get_task` tests.
 
 ---
 
 ### 6. `update_task_status` tool — `complete`
 
-`server.py`: `update_task_status` handler with full cascade logic.  
+`mcp_demo_server.py`: `update_task_status` handler with full cascade logic.  
 `tests/test_tools.py`: all `update_task_status` tests (precondition, task-not-found, demo path, milestone-advanced, full cascade).
 
 ---
 
 ### 7. `accounts://all` resource — `complete`
 
-`server.py`: resource handler.  
+`mcp_demo_server.py`: resource handler.  
 `tests/test_resource.py`: resource tests.
 
 ---
 
 ### 8. `assess-account` prompt — `complete`
 
-`server.py`: prompt handler.  
+`mcp_demo_server.py`: prompt handler.  
 `tests/test_prompt.py`: prompt tests.
 
 ---

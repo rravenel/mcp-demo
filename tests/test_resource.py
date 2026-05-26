@@ -1,7 +1,7 @@
 import pytest
 
 import db
-import server
+import mcp_demo_server as server
 from tests.conftest import _NoClose
 
 

@@ -179,7 +179,7 @@ The retry message contains the verification result — the cached baseline statu
 2. Reads the pinned version from `.claude-code-version`
 3. Runs `claude install {version}` to ensure the correct version is active
 4. Runs `uv sync` to ensure Python dependencies are installed
-5. Starts `uv run python server.py` in the background
+5. Starts `uv run python mcp_demo_server.py` in the background
 6. Polls the server health endpoint until ready (timeout after 10 seconds)
 7. Runs `uv run python demo.py`
 8. Traps EXIT to kill the background server process

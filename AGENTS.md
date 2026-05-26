@@ -23,7 +23,7 @@ MCP server demo app — a Python MCP server exposing a post-sale delivery manage
 ## Key files
 
 ```
-server.py       MCP server — tools, resource, prompt, health endpoint (port 8000)
+mcp_demo_server.py  MCP server — tools, resource, prompt, health endpoint (port 8000)
 db.py           Database module — connection factory and all query functions
 demo.py         Demo runner — MCP client, agent subprocess, judge loop
 demo.sh         Single entry point for running the full demo
@@ -35,7 +35,7 @@ seed.py         Seed script — populates data/delivery.db; not application code
 ```bash
 uv sync                                            # install dependencies
 uv run python seed.py                              # seed the database
-uv run python server.py                            # start MCP server (port 8000)
+uv run python mcp_demo_server.py                   # start MCP server (port 8000)
 ./demo.sh                                          # run the full demo end-to-end
 uv run ruff check .                                # lint
 uv run ruff format .                               # format

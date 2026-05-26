@@ -9,7 +9,7 @@ Implementation detail for the features defined in `spec.md`. Covers file layout,
 
 ```
 mcp-demo/
-├── server.py              # MCP server — tools, resource, prompt, health endpoint
+├── mcp_demo_server.py              # MCP server — tools, resource, prompt, health endpoint
 ├── db.py                  # Database module — connection, all query functions
 ├── demo.py                # Demo runner — MCP client, agent subprocess, judge loop
 ├── demo.sh                # Entry point — version check, server lifecycle, runs demo.py
@@ -23,7 +23,7 @@ mcp-demo/
     ├── test_tools.py      # Tool handler tests
     ├── test_resource.py   # Resource handler tests
     ├── test_prompt.py     # Prompt handler tests
-    ├── test_server.py     # Health endpoint test
+    ├── test_mcp_demo_server.py  # Health endpoint test
     └── test_demo.py       # Demo module unit tests
 ```
 
@@ -301,7 +301,7 @@ Fixture: `db_conn`. Each test inserts only the rows it needs.
 
 ---
 
-## Server Module — `server.py`
+## Server Module — `mcp_demo_server.py`
 
 ### Framework and transport
 
@@ -333,7 +333,7 @@ One prompt registered with `@mcp.prompt(name="assess-account")`:
 
 The handler function may use any valid Python name; the MCP-exposed name is `assess-account` (hyphen), set via the explicit `name` parameter. See Prompt Contract below.
 
-### Tests — `tests/test_server.py`
+### Tests — `tests/test_mcp_demo_server.py`
 
 Fixture: Starlette `TestClient` wrapping the FastMCP ASGI app.
 
@@ -729,7 +729,7 @@ Tests use inline data (a Python dict matching the resource response shape). No s
 
 4.  uv sync
 
-5.  uv run python server.py &
+5.  uv run python mcp_demo_server.py &
     SERVER_PID=$!
 
 6.  trap "kill $SERVER_PID 2>/dev/null" EXIT

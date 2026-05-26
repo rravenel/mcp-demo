@@ -1,6 +1,6 @@
 from starlette.testclient import TestClient
 
-from server import mcp
+from mcp_demo_server import mcp
 
 
 def test_health():

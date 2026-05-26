@@ -11,7 +11,7 @@ claude update "$VERSION"
 
 uv sync
 
-uv run python server.py &
+uv run python mcp_demo_server.py &
 SERVER_PID=$!
 
 trap "kill $SERVER_PID 2>/dev/null" EXIT
