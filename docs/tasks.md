@@ -56,7 +56,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 8. `assess-account` prompt — `pending`
+### 8. `assess-account` prompt — `complete`
 
 `server.py`: prompt handler.  
 `tests/test_prompt.py`: prompt tests.

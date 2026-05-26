@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+
 import fastmcp
+from mcp.types import PromptMessage, TextContent
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -145,6 +148,52 @@ def update_task_status(task_id: str, new_status: str) -> dict:
             return {"error": True, "code": "WRITE_FAILED", "reason": str(exc)}
     finally:
         conn.close()
+
+
+@mcp.prompt(name="assess-account")
+def assess_account(account_id: str) -> PromptMessage:
+    status = get_account_status(account_id)
+    if status.get("error"):
+        raise ValueError(f"get_account_status error: {status.get('code')} — {status.get('reason')}")
+
+    now = datetime.now(timezone.utc)
+    blocked_tasks = [t for t in status["tasks"] if t["status"] == "blocked"]
+    task_lines = []
+    for t in blocked_tasks:
+        updated = datetime.strptime(t["updated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        days_blocked = (now - updated).days
+        task_lines.append(
+            f"  - id: {t['id']}\n"
+            f"    title: {t['title']}\n"
+            f"    owner: {t['owner']}\n"
+            f"    blocker: {t['blocker']}\n"
+            f"    days_blocked: {days_blocked}"
+        )
+
+    blocked_section = "\n".join(task_lines) if task_lines else "  (none)"
+    text = f"""## Account Briefing
+
+Account: {status['account']['name']} (status: {status['account']['status']})
+Project: {status['project']['name']} (status: {status['project']['status']})
+Current Milestone: {status['milestone']['name']} (status: {status['milestone']['status']})
+
+Blocked tasks:
+{blocked_section}
+
+## Decision
+
+For each blocked task listed above, determine the appropriate action and call \
+`update_task_status(task_id, new_status)` to execute it.
+
+Choose one of the following actions and the corresponding `new_status` value:
+- Nudge the customer to provide a response or sign-off → `new_status = "pending_customer"`
+- Escalate internally because the blocker is on our side → `new_status = "in_progress"`
+- Place the task on hold because it cannot proceed yet → `new_status = "open"`
+
+Do not leave the task in its current blocked state. Pick the action that best \
+fits the situation and call `update_task_status` now.
+"""
+    return PromptMessage(role="user", content=TextContent(type="text", text=text))
 
 
 if __name__ == "__main__":
