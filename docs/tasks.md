@@ -21,7 +21,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 3. Server scaffold — `pending`
+### 3. Server scaffold — `complete`
 
 `server.py`: `FastMCP` app instance, HTTP transport on port 8000, `GET /health` route.  
 `tests/test_server.py`: health endpoint test.
