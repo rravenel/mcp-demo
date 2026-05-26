@@ -4,6 +4,7 @@ scratch.py
 .venv
 .server.pid
 .server.log
+data/delivery.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
