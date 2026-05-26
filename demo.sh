@@ -10,6 +10,7 @@ VERSION=$(cat .claude-code-version)
 claude install "$VERSION"
 
 uv sync
+uv run python seed.py
 
 # Stop any server already running (previous demo run, manual start, etc.)
 ./stop.sh

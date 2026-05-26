@@ -18,19 +18,11 @@ This is a deliberate demonstration, not a general-purpose application. Auth, mul
 
 ## Running the demo
 
-**First run — seed the database:**
-```bash
-uv run python seed.py
-```
-
-This creates `data/delivery.db` with the demo accounts, projects, milestones, and tasks. Only needed once (or to reset state between runs).
-
-**Run the demo:**
 ```bash
 ./demo.sh
 ```
 
-The script checks for Claude Code CLI, pins the correct version, installs Python dependencies, starts the MCP server, runs the demo, and shuts everything down on exit.
+The script installs the pinned Claude Code version, installs Python dependencies, seeds the database (resetting to a clean state on each run), starts the MCP server, runs the demo, and shuts everything down on exit.
 
 **Stop the server early** (if you interrupt the demo mid-run):
 ```bash

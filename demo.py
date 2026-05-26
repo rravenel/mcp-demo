@@ -172,26 +172,30 @@ def display_delta(before_data: list, after_data: list) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _run_claude(cmd: list[str]) -> str:
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    raw = proc.stdout.read()
+    proc.wait()
+    try:
+        data = json.loads(raw)
+        result_text = data.get("result", "(no result text)")
+        turns = data.get("num_turns", "?")
+        cost = data.get("total_cost_usd", 0)
+        print(f"{result_text}\n")
+        print(f"  turns: {turns}  |  cost: ${cost:.4f}")
+    except (json.JSONDecodeError, KeyError):
+        print(raw)
+    return raw
+
+
 def run_claude_p(prompt_text: str, session_uuid: str) -> str:
     cmd = ["claude", "-p", "--session-id", session_uuid, "--output-format", "json", prompt_text]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    output_lines = []
-    for line in proc.stdout:
-        print(line, end="", flush=True)
-        output_lines.append(line)
-    proc.wait()
-    return "".join(output_lines)
+    return _run_claude(cmd)
 
 
 def run_claude_p_resume(session_uuid: str, message: str) -> str:
     cmd = ["claude", "-p", "--resume", session_uuid, "--output-format", "json", message]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    output_lines = []
-    for line in proc.stdout:
-        print(line, end="", flush=True)
-        output_lines.append(line)
-    proc.wait()
-    return "".join(output_lines)
+    return _run_claude(cmd)
 
 
 # ---------------------------------------------------------------------------
