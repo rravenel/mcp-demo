@@ -13,8 +13,9 @@ uv sync
 
 uv run python mcp_demo_server.py &
 SERVER_PID=$!
+echo $SERVER_PID > .server.pid
 
-trap "kill $SERVER_PID 2>/dev/null" EXIT
+trap "kill $SERVER_PID 2>/dev/null; rm -f .server.pid" EXIT
 
 for i in $(seq 1 10); do
     if curl -sf http://localhost:8000/health >/dev/null 2>&1; then

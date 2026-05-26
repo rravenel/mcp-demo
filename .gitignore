@@ -2,6 +2,7 @@
 scratch.py
 .DS_Store
 .venv
+.server.pid
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
