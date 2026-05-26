@@ -70,7 +70,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 10. `demo.py` — `pending`
+### 10. `demo.py` — `complete`
 
 MCP client (`initialize`, `read_resource`, `get_prompt`, `call_get_task`), display functions, agent runner, judge loop, main sequence.  
 `tests/test_demo.py`: `verify_update` and data extraction tests.
