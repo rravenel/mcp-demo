@@ -11,7 +11,10 @@ claude update "$VERSION"
 
 uv sync
 
-uv run python mcp_demo_server.py &
+# Stop any server already running (previous demo run, manual start, etc.)
+./stop.sh
+
+uv run python mcp_demo_server.py >> .server.log 2>&1 &
 SERVER_PID=$!
 echo $SERVER_PID > .server.pid
 
