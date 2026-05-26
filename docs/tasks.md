@@ -77,7 +77,7 @@ MCP client (`initialize`, `read_resource`, `get_prompt`, `call_get_task`), displ
 
 ---
 
-### 11. `demo.sh` — `pending`
+### 11. `demo.sh` — `complete`
 
 Entry point: Claude Code version check and install, `uv sync`, server start, health poll, demo run, EXIT trap.
 
