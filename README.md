@@ -29,6 +29,8 @@ The script installs the pinned Claude Code version, installs Python dependencies
 ./stop.sh
 ```
 
+Execution incurs an inference cost of ~$0.11 using Sonnet 4.6 (May, 2026).
+
 ---
 
 ## What the demo shows
