@@ -47,6 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_milestone_id    ON tasks(milestone_id);
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
+    conn.isolation_level = None  # autocommit; transactions managed explicitly
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

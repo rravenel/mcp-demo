@@ -54,5 +54,89 @@ def get_task(task_id: str) -> dict:
         conn.close()
 
 
+_VALID_STATUSES = {"open", "in_progress", "pending_customer", "blocked", "complete", "invalid"}
+
+
+@mcp.tool()
+def update_task_status(task_id: str, new_status: str) -> dict:
+    if new_status not in _VALID_STATUSES:
+        conn = db.get_connection()
+        try:
+            task = db.fetch_task(conn, task_id)
+            current = task["status"] if task else None
+        finally:
+            conn.close()
+        return {"error": True, "code": "INVALID_STATUS", "reason": f"'{new_status}' is not a valid status", "current_status": current}
+
+    conn = db.get_connection()
+    try:
+        conn.execute("BEGIN")
+        now = db._now()
+
+        task = db.fetch_task(conn, task_id)
+        if not task:
+            conn.rollback()
+            return {"error": True, "code": "TASK_NOT_FOUND", "reason": f"No task with id '{task_id}'"}
+
+        try:
+            db.update_task(conn, task_id, new_status, now)
+
+            milestone = db.fetch_milestone_for_task(conn, task_id)
+            milestone_id = milestone["id"]
+            project_id = milestone["project_id"]
+
+            incomplete_tasks = db.fetch_incomplete_tasks_for_milestone(conn, milestone_id)
+            if incomplete_tasks:
+                conn.commit()
+                return {
+                    "task_updated": {"id": task_id, "new_status": new_status},
+                    "milestone_advanced": False,
+                    "blocking_tasks": [
+                        {"id": t["id"], "title": t["title"], "status": t["status"], "blocker": t["blocker"]}
+                        for t in incomplete_tasks
+                    ],
+                }
+
+            db.complete_milestone(conn, milestone_id, now)
+
+            project = db.fetch_project_for_milestone(conn, milestone_id)
+            account_id = project["account_id"]
+
+            incomplete_milestones = db.fetch_incomplete_milestones_for_project(conn, project_id)
+            if incomplete_milestones:
+                conn.commit()
+                return {
+                    "task_updated": {"id": task_id, "new_status": new_status},
+                    "milestone_advanced": True,
+                    "milestone": {"id": milestone_id, "name": milestone["name"], "status": "complete"},
+                    "project_complete": False,
+                    "remaining_milestones": [
+                        {"id": m["id"], "name": m["name"], "status": m["status"]}
+                        for m in incomplete_milestones
+                    ],
+                }
+
+            db.complete_project(conn, project_id, now)
+            db.clear_account_at_risk(conn, account_id, now)
+
+            updated_account = db.fetch_account(conn, account_id)
+
+            conn.commit()
+            return {
+                "task_updated": {"id": task_id, "new_status": new_status},
+                "milestone_advanced": True,
+                "milestone": {"id": milestone_id, "name": milestone["name"], "status": "complete"},
+                "project_complete": True,
+                "project": {"id": project_id, "name": project["name"], "status": "complete"},
+                "account_status_updated": True,
+                "account": {"id": account_id, "name": updated_account["name"], "status": updated_account["status"]},
+            }
+        except Exception as exc:
+            conn.rollback()
+            return {"error": True, "code": "WRITE_FAILED", "reason": str(exc)}
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)

@@ -42,7 +42,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 6. `update_task_status` tool — `pending`
+### 6. `update_task_status` tool — `complete`
 
 `server.py`: `update_task_status` handler with full cascade logic.  
 `tests/test_tools.py`: all `update_task_status` tests (precondition, task-not-found, demo path, milestone-advanced, full cascade).
