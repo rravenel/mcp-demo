@@ -83,6 +83,6 @@ Entry point: Claude Code version check and install, `uv sync`, server start, hea
 
 ---
 
-### 12. End-to-end validation — `pending`
+### 12. End-to-end validation — `complete`
 
 Write `seed.py` and run `uv run python seed.py` to populate `data/delivery.db`. Then run `./demo.sh` and confirm: resource display, agent tool calls, judge verification, and before/after delta.

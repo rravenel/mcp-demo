@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 import fastmcp
+from fastmcp.prompts import Message
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -150,7 +151,7 @@ def update_task_status(task_id: str, new_status: str) -> dict:
 
 
 @mcp.prompt(name="assess-account")
-def assess_account(account_id: str) -> list:
+def assess_account(account_id: str) -> list[Message]:
     status = get_account_status(account_id)
     if status.get("error"):
         raise ValueError(f"get_account_status error: {status.get('code')} — {status.get('reason')}")
@@ -192,7 +193,7 @@ Choose one of the following actions and the corresponding `new_status` value:
 Do not leave the task in its current blocked state. Pick the action that best \
 fits the situation and call `update_task_status` now.
 """
-    return [{"role": "user", "content": text}]
+    return [Message(text)]
 
 
 if __name__ == "__main__":

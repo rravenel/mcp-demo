@@ -1,4 +1,5 @@
 import pytest
+from fastmcp.prompts import Message
 
 import db
 import mcp_demo_server as server
@@ -11,13 +12,14 @@ def patch_db(seeded_db_conn, monkeypatch):
 
 
 def _text(result: list) -> str:
-    return result[0]["content"]
+    return result[0].content.text
 
 
 def test_prompt_returns_user_message(seeded_db_conn):
     result = server.assess_account("globex")
     assert isinstance(result, list)
-    assert result[0]["role"] == "user"
+    assert isinstance(result[0], Message)
+    assert result[0].role == "user"
 
 
 def test_prompt_contains_account_project_milestone(seeded_db_conn):

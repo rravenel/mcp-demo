@@ -16,12 +16,26 @@ def _next_id() -> int:
     return _request_counter
 
 
+_BASE_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+}
+
+
 def _post(payload: dict) -> dict:
-    headers = {"Content-Type": "application/json"}
+    headers = dict(_BASE_HEADERS)
     if _session_id:
         headers["Mcp-Session-Id"] = _session_id
     response = httpx.post(MCP_URL, json=payload, headers=headers, timeout=30)
     response.raise_for_status()
+    if not response.content:
+        return {}
+    content_type = response.headers.get("content-type", "")
+    if "text/event-stream" in content_type:
+        for line in response.text.splitlines():
+            if line.startswith("data:"):
+                return json.loads(line[5:].strip())
+        return {}
     return response.json()
 
 
@@ -37,8 +51,7 @@ def initialize() -> None:
             "clientInfo": {"name": "demo", "version": "0.1"},
         },
     }
-    headers = {"Content-Type": "application/json"}
-    response = httpx.post(MCP_URL, json=payload, headers=headers, timeout=30)
+    response = httpx.post(MCP_URL, json=payload, headers=_BASE_HEADERS, timeout=30)
     response.raise_for_status()
     _session_id = response.headers.get("Mcp-Session-Id")
 
