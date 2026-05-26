@@ -28,7 +28,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 4. `get_account_status` tool — `pending`
+### 4. `get_account_status` tool — `complete`
 
 `server.py`: `get_account_status` handler.  
 `tests/test_tools.py`: `get_account_status` tests.
