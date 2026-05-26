@@ -35,7 +35,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 5. `get_task` tool — `pending`
+### 5. `get_task` tool — `complete`
 
 `server.py`: `get_task` handler.  
 `tests/test_tools.py`: `get_task` tests.

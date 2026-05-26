@@ -55,3 +55,22 @@ def test_get_account_status_no_current_milestone(db_conn, monkeypatch):
     result = server.get_account_status("a1")
     assert result["error"] is True
     assert result["code"] == "NO_CURRENT_MILESTONE"
+
+
+# ---------------------------------------------------------------------------
+# get_task
+# ---------------------------------------------------------------------------
+
+
+def test_get_task_success(seeded_db_conn):
+    result = server.get_task("globex-t2")
+    assert "error" not in result
+    assert result["id"] == "globex-t2"
+    for field in ("id", "title", "status", "owner", "blocker", "updated_at"):
+        assert field in result
+
+
+def test_get_task_not_found(seeded_db_conn):
+    result = server.get_task("missing")
+    assert result["error"] is True
+    assert result["code"] == "TASK_NOT_FOUND"

@@ -42,5 +42,17 @@ def get_account_status(account_id: str) -> dict:
         conn.close()
 
 
+@mcp.tool()
+def get_task(task_id: str) -> dict:
+    conn = db.get_connection()
+    try:
+        task = db.fetch_task(conn, task_id)
+        if not task:
+            return {"error": True, "code": "TASK_NOT_FOUND", "reason": f"No task with id '{task_id}'"}
+        return {"id": task["id"], "title": task["title"], "status": task["status"], "owner": task["owner"], "blocker": task["blocker"], "updated_at": task["updated_at"]}
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)
