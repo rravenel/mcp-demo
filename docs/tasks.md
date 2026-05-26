@@ -13,7 +13,7 @@ Derived from `engineering_spec.md`. Each task bundles code and test work; status
 
 ---
 
-### 2. Database — `pending`
+### 2. Database — `complete`
 
 `db.py`: connection factory, all query functions.  
 `tests/conftest.py`: `db_conn` and `seeded_db_conn` fixtures.  
