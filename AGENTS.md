@@ -15,7 +15,7 @@ MCP server demo app — a Python MCP server exposing a post-sale delivery manage
 
 - **Python** with `uv` for package/environment management
 - **fastmcp** — MCP server framework (streamable HTTP transport, `/mcp` endpoint)
-- **SQLite** — data layer via stdlib `sqlite3`; database at `data/delivery.db` (override with `DB_PATH` env var)
+- **SQLite** — data layer via stdlib `sqlite3`; database at `data/delivery.db` (override with `DB_PATH` env var); gitignored — run `uv run python seed.py` before starting the server
 - **httpx** — HTTP client used in `demo.py`'s raw MCP client
 - **Ruff** for linting and formatting
 - **pytest** for testing
