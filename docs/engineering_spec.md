@@ -369,7 +369,7 @@ All return values are plain dicts serialized by fastmcp. Error responses include
 **Error responses:**
 ```json
 { "error": true, "code": "ACCOUNT_NOT_FOUND",   "reason": "No account with id '…'" }
-{ "error": true, "code": "NO_ACTIVE_PROJECT",   "reason": "…" }
+{ "error": true, "code": "NO_CURRENT_PROJECT",   "reason": "…" }
 { "error": true, "code": "NO_CURRENT_MILESTONE","reason": "…" }
 ```
 
@@ -380,7 +380,7 @@ Fixture: `seeded_db_conn` monkeypatched into `db.get_connection`.
 - Returns the correct nested structure (account, project, milestone, tasks) for a known account
 - All task fields are present: `id`, `title`, `status`, `owner`, `blocker`, `updated_at`
 - Returns `ACCOUNT_NOT_FOUND` for an unknown `account_id`
-- Returns `NO_ACTIVE_PROJECT` when the account's only project is `complete`
+- Returns `NO_CURRENT_PROJECT` when the account's only project is `complete`
 - Returns `NO_CURRENT_MILESTONE` when all milestones in the active project are `complete`
 
 ---

@@ -19,6 +19,12 @@ async def health(request: Request) -> JSONResponse:
 
 @mcp.tool()
 def get_account_status(account_id: str) -> dict:
+    if not account_id:
+        return {
+            "error": True,
+            "code": "INVALID_ACCOUNT_ID",
+            "reason": "account_id must not be empty",
+        }
     conn = db.get_connection()
     try:
         account = db.fetch_account(conn, account_id)
@@ -33,8 +39,8 @@ def get_account_status(account_id: str) -> dict:
         if not project:
             return {
                 "error": True,
-                "code": "NO_ACTIVE_PROJECT",
-                "reason": f"No active project for account '{account_id}'",
+                "code": "NO_CURRENT_PROJECT",
+                "reason": f"No current project for account '{account_id}'",
             }
 
         milestone = db.fetch_current_milestone(conn, project["id"])
@@ -77,6 +83,12 @@ def get_account_status(account_id: str) -> dict:
 
 @mcp.tool()
 def get_task(task_id: str) -> dict:
+    if not task_id:
+        return {
+            "error": True,
+            "code": "INVALID_TASK_ID",
+            "reason": "task_id must not be empty",
+        }
     conn = db.get_connection()
     try:
         task = db.fetch_task(conn, task_id)
@@ -107,41 +119,36 @@ def accounts_all() -> list:
         conn.close()
 
 
-_VALID_STATUSES = {"open", "in_progress", "pending_customer", "blocked", "complete", "invalid"}
-
-
 @mcp.tool()
 def update_task_status(task_id: str, new_status: str) -> dict:
-    if new_status not in _VALID_STATUSES:
-        conn = db.get_connection()
-        try:
-            task = db.fetch_task(conn, task_id)
-            current = task["status"] if task else None
-        finally:
-            conn.close()
+    if not task_id:
+        return {
+            "error": True,
+            "code": "INVALID_TASK_ID",
+            "reason": "task_id must not be empty",
+        }
+    try:
+        status = db.TaskStatus(new_status)
+    except ValueError:
         return {
             "error": True,
             "code": "INVALID_STATUS",
-            "reason": f"'{new_status}' is not a valid status",
-            "current_status": current,
+            "reason": f"'{new_status}' is not a valid task status",
         }
 
     conn = db.get_connection()
     try:
         conn.execute("BEGIN")
-        now = db._now()
-
-        task = db.fetch_task(conn, task_id)
-        if not task:
-            conn.rollback()
-            return {
-                "error": True,
-                "code": "TASK_NOT_FOUND",
-                "reason": f"No task with id '{task_id}'",
-            }
 
         try:
-            db.update_task(conn, task_id, new_status, now)
+            now = db.now()
+            if not db.update_task(conn, task_id, status, now):
+                conn.rollback()
+                return {
+                    "error": True,
+                    "code": "TASK_NOT_FOUND",
+                    "reason": f"No task with id '{task_id}'",
+                }
 
             milestone = db.fetch_milestone_for_task(conn, task_id)
             milestone_id = milestone["id"]
@@ -151,7 +158,7 @@ def update_task_status(task_id: str, new_status: str) -> dict:
             if incomplete_tasks:
                 conn.commit()
                 return {
-                    "task_updated": {"id": task_id, "new_status": new_status},
+                    "task_updated": {"id": task_id, "new_status": status},
                     "milestone_advanced": False,
                     "blocking_tasks": [
                         {
@@ -173,12 +180,12 @@ def update_task_status(task_id: str, new_status: str) -> dict:
             if incomplete_milestones:
                 conn.commit()
                 return {
-                    "task_updated": {"id": task_id, "new_status": new_status},
+                    "task_updated": {"id": task_id, "new_status": status},
                     "milestone_advanced": True,
                     "milestone": {
                         "id": milestone_id,
                         "name": milestone["name"],
-                        "status": "complete",
+                        "status": db.MilestoneStatus.COMPLETE,
                     },
                     "project_complete": False,
                     "remaining_milestones": [
@@ -194,11 +201,11 @@ def update_task_status(task_id: str, new_status: str) -> dict:
 
             conn.commit()
             return {
-                "task_updated": {"id": task_id, "new_status": new_status},
+                "task_updated": {"id": task_id, "new_status": status},
                 "milestone_advanced": True,
-                "milestone": {"id": milestone_id, "name": milestone["name"], "status": "complete"},
+                "milestone": {"id": milestone_id, "name": milestone["name"], "status": db.MilestoneStatus.COMPLETE},
                 "project_complete": True,
-                "project": {"id": project_id, "name": project["name"], "status": "complete"},
+                "project": {"id": project_id, "name": project["name"], "status": db.ProjectStatus.COMPLETE},
                 "account_status_updated": True,
                 "account": {
                     "id": account_id,
@@ -206,9 +213,9 @@ def update_task_status(task_id: str, new_status: str) -> dict:
                     "status": updated_account["status"],
                 },
             }
-        except Exception as exc:
+        except Exception:
             conn.rollback()
-            return {"error": True, "code": "WRITE_FAILED", "reason": str(exc)}
+            raise
     finally:
         conn.close()
 
@@ -220,7 +227,7 @@ def assess_account(account_id: str) -> list[Message]:
         raise ValueError(f"get_account_status error: {status.get('code')} — {status.get('reason')}")
 
     now = datetime.now(timezone.utc)
-    blocked_tasks = [t for t in status["tasks"] if t["status"] == "blocked"]
+    blocked_tasks = [t for t in status["tasks"] if t["status"] == db.TaskStatus.BLOCKED]
     task_lines = []
     for t in blocked_tasks:
         updated = datetime.strptime(t["updated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
@@ -254,8 +261,8 @@ separately.
 
 For the blocked task listed above, call `update_task_status(task_id, new_status)` \
 with one of the following:
-- The blocker is on the customer's side → `new_status = "pending_customer"`
-- The blocker is on our side and we can act → `new_status = "in_progress"`
+- The blocker is on the customer's side → `new_status = "{db.TaskStatus.PENDING_CUSTOMER.value}"`
+- The blocker is on our side and we can act → `new_status = "{db.TaskStatus.IN_PROGRESS.value}"`
 
 The task must not remain `blocked`. Call `update_task_status` now.
 """

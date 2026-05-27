@@ -1,14 +1,48 @@
 import os
 import sqlite3
 from datetime import datetime, timezone
+from enum import Enum
 
 DB_PATH = os.environ.get("DB_PATH", "data/delivery.db")
 
-DDL = """
+
+class SqlEnum(str, Enum):
+    @classmethod
+    def sql_values(cls) -> str:
+        return ", ".join(f"'{e.value}'" for e in cls)
+
+
+class AccountStatus(SqlEnum):
+    ACTIVE = "active"
+    AT_RISK = "at_risk"
+
+
+class ProjectStatus(SqlEnum):
+    ACTIVE = "active"
+    AT_RISK = "at_risk"
+    COMPLETE = "complete"
+
+
+class MilestoneStatus(SqlEnum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETE = "complete"
+
+
+class TaskStatus(SqlEnum):
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    PENDING_CUSTOMER = "pending_customer"
+    BLOCKED = "blocked"
+    COMPLETE = "complete"
+    INVALID = "invalid"
+
+
+DDL = f"""
 CREATE TABLE IF NOT EXISTS accounts (
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk')),
+    status     TEXT NOT NULL CHECK (status IN ({AccountStatus.sql_values()})),
     updated_at DATETIME NOT NULL
 );
 
@@ -16,7 +50,7 @@ CREATE TABLE IF NOT EXISTS projects (
     id         TEXT PRIMARY KEY,
     account_id TEXT NOT NULL REFERENCES accounts(id),
     name       TEXT NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk', 'complete')),
+    status     TEXT NOT NULL CHECK (status IN ({ProjectStatus.sql_values()})),
     updated_at DATETIME NOT NULL
 );
 
@@ -25,7 +59,7 @@ CREATE TABLE IF NOT EXISTS milestones (
     project_id TEXT NOT NULL REFERENCES projects(id),
     name       TEXT NOT NULL,
     "order"    INTEGER NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('not_started', 'in_progress', 'complete')),
+    status     TEXT NOT NULL CHECK (status IN ({MilestoneStatus.sql_values()})),
     updated_at DATETIME NOT NULL
 );
 
@@ -33,7 +67,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id           TEXT PRIMARY KEY,
     milestone_id TEXT NOT NULL REFERENCES milestones(id),
     title        TEXT NOT NULL,
-    status       TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'pending_customer', 'blocked', 'complete', 'invalid')),
+    status       TEXT NOT NULL CHECK (status IN ({TaskStatus.sql_values()})),
     owner        TEXT,
     blocker      TEXT,
     updated_at   DATETIME NOT NULL
@@ -53,7 +87,7 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
-def _now() -> str:
+def now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -76,21 +110,21 @@ def fetch_account(conn: sqlite3.Connection, account_id: str) -> sqlite3.Row | No
 
 def fetch_current_project(conn: sqlite3.Connection, account_id: str) -> sqlite3.Row | None:
     return conn.execute(
-        "SELECT id, name, status FROM projects WHERE account_id = ? AND status != 'complete' LIMIT 1",
-        (account_id,),
+        "SELECT id, name, status FROM projects WHERE account_id = ? AND status != ? LIMIT 1",
+        (account_id, ProjectStatus.COMPLETE),
     ).fetchone()
 
 
 def fetch_current_milestone(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row | None:
     row = conn.execute(
-        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status = 'in_progress' LIMIT 1",
-        (project_id,),
+        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status = ? LIMIT 1",
+        (project_id, MilestoneStatus.IN_PROGRESS),
     ).fetchone()
     if row:
         return row
     return conn.execute(
-        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status = 'not_started' ORDER BY \"order\" ASC LIMIT 1",
-        (project_id,),
+        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status = ? ORDER BY \"order\" ASC LIMIT 1",
+        (project_id, MilestoneStatus.NOT_STARTED),
     ).fetchone()
 
 
@@ -108,17 +142,18 @@ def fetch_task(conn: sqlite3.Connection, task_id: str) -> sqlite3.Row | None:
     ).fetchone()
 
 
-def update_task(conn: sqlite3.Connection, task_id: str, new_status: str, now: str) -> None:
-    conn.execute(
+def update_task(conn: sqlite3.Connection, task_id: str, new_status: TaskStatus, now: str) -> bool:
+    cursor = conn.execute(
         "UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?",
         (new_status, now, task_id),
     )
+    return cursor.rowcount > 0
 
 
 def fetch_incomplete_tasks_for_milestone(conn: sqlite3.Connection, milestone_id: str) -> list[sqlite3.Row]:
     return conn.execute(
-        "SELECT id, title, status, blocker FROM tasks WHERE milestone_id = ? AND status != 'complete' ORDER BY rowid",
-        (milestone_id,),
+        "SELECT id, title, status, blocker FROM tasks WHERE milestone_id = ? AND status != ? ORDER BY rowid",
+        (milestone_id, TaskStatus.COMPLETE),
     ).fetchall()
 
 
@@ -136,15 +171,15 @@ def fetch_milestone_for_task(conn: sqlite3.Connection, task_id: str) -> sqlite3.
 
 def complete_milestone(conn: sqlite3.Connection, milestone_id: str, now: str) -> None:
     conn.execute(
-        "UPDATE milestones SET status = 'complete', updated_at = ? WHERE id = ?",
-        (now, milestone_id),
+        "UPDATE milestones SET status = ?, updated_at = ? WHERE id = ?",
+        (MilestoneStatus.COMPLETE, now, milestone_id),
     )
 
 
 def fetch_incomplete_milestones_for_project(conn: sqlite3.Connection, project_id: str) -> list[sqlite3.Row]:
     return conn.execute(
-        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status != 'complete' ORDER BY \"order\"",
-        (project_id,),
+        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status != ? ORDER BY \"order\"",
+        (project_id, MilestoneStatus.COMPLETE),
     ).fetchall()
 
 
@@ -162,15 +197,15 @@ def fetch_project_for_milestone(conn: sqlite3.Connection, milestone_id: str) -> 
 
 def complete_project(conn: sqlite3.Connection, project_id: str, now: str) -> None:
     conn.execute(
-        "UPDATE projects SET status = 'complete', updated_at = ? WHERE id = ?",
-        (now, project_id),
+        "UPDATE projects SET status = ?, updated_at = ? WHERE id = ?",
+        (ProjectStatus.COMPLETE, now, project_id),
     )
 
 
 def clear_account_at_risk(conn: sqlite3.Connection, account_id: str, now: str) -> None:
     conn.execute(
-        "UPDATE accounts SET status = 'active', updated_at = ? WHERE id = ? AND status = 'at_risk'",
-        (now, account_id),
+        "UPDATE accounts SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
+        (AccountStatus.ACTIVE, now, account_id, AccountStatus.AT_RISK),
     )
 
 

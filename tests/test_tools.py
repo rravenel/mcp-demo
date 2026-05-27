@@ -44,7 +44,7 @@ def test_get_account_status_no_active_project(db_conn, monkeypatch):
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'complete', ?)", (now,))
     result = server.get_account_status("a1")
     assert result["error"] is True
-    assert result["code"] == "NO_ACTIVE_PROJECT"
+    assert result["code"] == "NO_CURRENT_PROJECT"
 
 
 def test_get_account_status_no_current_milestone(db_conn, monkeypatch):
@@ -88,7 +88,7 @@ def test_update_task_invalid_status(seeded_db_conn):
     result = server.update_task_status("acme-t3", "flying")
     assert result["error"] is True
     assert result["code"] == "INVALID_STATUS"
-    assert result["current_status"] == "open"
+    assert "current_status" not in result
 
 
 def test_update_task_invalid_status_db_unchanged(seeded_db_conn):

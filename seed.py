@@ -4,6 +4,8 @@ import os
 import sqlite3
 from datetime import datetime, timezone, timedelta
 
+from db import DDL, AccountStatus, MilestoneStatus, ProjectStatus, TaskStatus
+
 DB_PATH = os.environ.get("DB_PATH", "data/delivery.db")
 
 
@@ -12,86 +14,50 @@ def ts(days_ago: int = 0) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-DDL = """
-CREATE TABLE IF NOT EXISTS accounts (
-    id         TEXT PRIMARY KEY,
-    name       TEXT NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk')),
-    updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS projects (
-    id         TEXT PRIMARY KEY,
-    account_id TEXT NOT NULL REFERENCES accounts(id),
-    name       TEXT NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk', 'complete')),
-    updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS milestones (
-    id         TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id),
-    name       TEXT NOT NULL,
-    "order"    INTEGER NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('not_started', 'in_progress', 'complete')),
-    updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS tasks (
-    id           TEXT PRIMARY KEY,
-    milestone_id TEXT NOT NULL REFERENCES milestones(id),
-    title        TEXT NOT NULL,
-    status       TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'pending_customer', 'blocked', 'complete', 'invalid')),
-    owner        TEXT,
-    blocker      TEXT,
-    updated_at   DATETIME NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_projects_account_id   ON projects(account_id);
-CREATE INDEX IF NOT EXISTS idx_milestones_project_id ON milestones(project_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_milestone_id    ON tasks(milestone_id);
-"""
-
 SEED = [
     # Acme Corp — active account
-    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)", ("acme", "Acme Corp", "active", ts())),
+    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)", ("acme", "Acme Corp", AccountStatus.ACTIVE, ts())),
     (
         "INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?)",
-        ("acme-proj", "acme", "Acme Onboarding", "active", ts()),
+        ("acme-proj", "acme", "Acme Onboarding", ProjectStatus.ACTIVE, ts()),
     ),
     (
         "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-        ("acme-m1", "acme-proj", "Kickoff & Setup", 1, "complete", ts()),
+        ("acme-m1", "acme-proj", "Kickoff & Setup", 1, MilestoneStatus.COMPLETE, ts()),
     ),
     (
         "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-        ("acme-m2", "acme-proj", "Integration & Testing", 2, "in_progress", ts()),
+        ("acme-m2", "acme-proj", "Integration & Testing", 2, MilestoneStatus.IN_PROGRESS, ts()),
     ),
     (
         "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-        ("acme-t1", "acme-m2", "Configure SSO", "complete", "Alice", None, ts()),
+        ("acme-t1", "acme-m2", "Configure SSO", TaskStatus.COMPLETE, "Alice", None, ts()),
     ),
     (
         "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-        ("acme-t2", "acme-m2", "Run smoke tests", "complete", "Bob", None, ts()),
+        ("acme-t2", "acme-m2", "Run smoke tests", TaskStatus.COMPLETE, "Bob", None, ts()),
     ),
     (
         "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-        ("acme-t3", "acme-m2", "UAT sign-off", "open", "Carol", None, ts()),
+        ("acme-t3", "acme-m2", "UAT sign-off", TaskStatus.OPEN, "Carol", None, ts()),
     ),
     # Globex Inc — at_risk account
-    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)", ("globex", "Globex Inc", "at_risk", ts())),
+    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)", ("globex", "Globex Inc", AccountStatus.AT_RISK, ts())),
     (
         "INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?)",
-        ("globex-proj", "globex", "Globex Onboarding", "at_risk", ts()),
+        ("globex-proj", "globex", "Globex Onboarding", ProjectStatus.AT_RISK, ts()),
     ),
     (
         "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-        ("globex-m1", "globex-proj", "Kickoff & Setup", 1, "complete", ts()),
+        ("globex-m1", "globex-proj", "Kickoff & Setup", 1, MilestoneStatus.COMPLETE, ts()),
     ),
     (
         "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-        ("globex-m2", "globex-proj", "Integration & Testing", 2, "in_progress", ts()),
+        ("globex-m2", "globex-proj", "Integration & Testing", 2, MilestoneStatus.IN_PROGRESS, ts()),
     ),
     (
         "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-        ("globex-t1", "globex-m2", "Configure SSO", "complete", "Dave", None, ts()),
+        ("globex-t1", "globex-m2", "Configure SSO", TaskStatus.COMPLETE, "Dave", None, ts()),
     ),
     (
         "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
@@ -99,7 +65,7 @@ SEED = [
             "globex-t2",
             "globex-m2",
             "Customer data migration sign-off",
-            "blocked",
+            TaskStatus.BLOCKED,
             "Eve",
             "Customer has not submitted the required compliance document",
             ts(14),
@@ -107,7 +73,7 @@ SEED = [
     ),
     (
         "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-        ("globex-t3", "globex-m2", "Legacy API decommission", "invalid", None, None, ts()),
+        ("globex-t3", "globex-m2", "Legacy API decommission", TaskStatus.INVALID, None, None, ts()),
     ),
 ]
 
