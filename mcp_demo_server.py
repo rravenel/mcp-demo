@@ -245,18 +245,19 @@ Current Milestone: {status["milestone"]["name"]} (status: {status["milestone"]["
 Blocked tasks:
 {blocked_section}
 
-## Decision
+## Instructions
 
-For each blocked task listed above, determine the appropriate action and call \
-`update_task_status(task_id, new_status)` to execute it.
+This is a triage action. Your role is to move this blocked task forward by \
+identifying who needs to act next. Do not mark tasks complete — resolving the \
+underlying blocker requires confirmation outside this system and is handled \
+separately.
 
-Choose one of the following actions and the corresponding `new_status` value:
-- Nudge the customer to provide a response or sign-off → `new_status = "pending_customer"`
-- Escalate internally because the blocker is on our side → `new_status = "in_progress"`
-- Place the task on hold because it cannot proceed yet → `new_status = "open"`
+For the blocked task listed above, call `update_task_status(task_id, new_status)` \
+with one of the following:
+- The blocker is on the customer's side → `new_status = "pending_customer"`
+- The blocker is on our side and we can act → `new_status = "in_progress"`
 
-Do not leave the task in its current blocked state. Pick the action that best \
-fits the situation and call `update_task_status` now.
+The task must not remain `blocked`. Call `update_task_status` now.
 """
     return [Message(text)]
 

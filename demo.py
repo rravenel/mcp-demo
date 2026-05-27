@@ -149,7 +149,7 @@ def _parse_accounts(resource_data: list) -> list:
 
 
 def display_delta(before_data: list, after_data: list) -> None:
-    print("\n=== Changes ===")
+    print("\n=== Result ===")
     before_tasks: dict[str, str] = {}
     after_tasks: dict[str, str] = {}
 
@@ -171,7 +171,7 @@ def display_delta(before_data: list, after_data: list) -> None:
     for task_id, before_status in before_tasks.items():
         after_status = after_tasks.get(task_id, before_status)
         if before_status != after_status:
-            print(f"\n  Task {task_id}: {before_status} → {after_status}")
+            print(f"\nTask {task_id}: {before_status} → {after_status}")
             changed = True
     if not changed:
         print("  (no task status changes detected)")
@@ -207,12 +207,12 @@ def _run_claude(cmd: list[str]) -> dict:
             content = event.get("message", {}).get("content", [])
             texts = [b["text"] for b in content if b.get("type") == "text" and b.get("text")]
             calls = [b for b in content if b.get("type") == "tool_use"]
-            if texts and calls:
-                preview = texts[0].replace("\n", " ")
-                print(f"\n  {preview[:100]}{'…' if len(preview) > 100 else ''}")
+            if texts or calls:
+                print("\n  [Assistant]")
+            if texts:
+                print(texts[0].replace("\n", "\n  "))
             for c in calls:
-                args = json.dumps(c.get("input", {}))
-                print(f"    → {c['name']}({args[:80]}{'…' if len(args) > 80 else ''})")
+                print(f"    → {c['name']}({json.dumps(c.get('input', {}))})")
 
         elif etype == "user":
             for block in event.get("message", {}).get("content", []):
@@ -220,8 +220,7 @@ def _run_claude(cmd: list[str]) -> dict:
                     rc = block.get("content", "")
                     if isinstance(rc, list):
                         rc = rc[0].get("text", "") if rc else ""
-                    preview = str(rc).replace("\n", " ")
-                    print(f"    ← {preview[:100]}{'…' if len(preview) > 100 else ''}")
+                    print(f"\n  [Tool]\n    ← {rc}")
 
         elif etype == "result":
             final_event = event
@@ -294,7 +293,7 @@ def _print_summary(run_data: dict) -> None:
     cache_w = usage.get("cache_creation_input_tokens", 0)
     out = usage.get("output_tokens", 0)
     print("\nUsage:")
-    print(f"  turns: {run_data.get('num_turns', '?')}  |  cost: ${run_data.get('cost', 0):.4f}")
+    print(f"  cost: ${run_data.get('cost', 0):.4f}")
     print(
         f"  tokens: {inp:,} input + {cache_r:,} cache_read + {cache_w:,} cache_write + {out:,} output"
     )
@@ -317,24 +316,22 @@ def main() -> None:
     blocked_task_id = blocked_task["id"]
     baseline_status = "blocked"
 
-    print("\n=== Agent Prompt ===")
-    print(f"\nFetching prompt for {globex['name']}...")
+    print("\n=== MCP Prompt ===")
     messages = get_prompt("assess-account", {"account_id": globex_id})
     filled_prompt = messages[0]["content"]["text"]
-    prompt_preview = "\n".join(f"  {line}" for line in filled_prompt.splitlines() if line.strip())[
-        :300
-    ]
-    print(f"\n{prompt_preview}\n  ...")
+    print(f"\n{filled_prompt}")
 
     session_uuid = str(uuid.uuid4())
-    print("\n=== Agent Process ===")
+    print("\n=== Agent ===")
     print(f"\nRunning agent (session: {session_uuid})...")
     run_data = run_claude_p(filled_prompt, session_uuid)
+    _print_summary(run_data)
 
-    print("\n=== Agent Response ===")
-    print(f"\n{run_data['result']}\n")
-
+    after_data = read_resource("accounts://all")
+    display_delta(data, after_data)
     changed = verify_update(blocked_task_id, baseline_status)
+    print(f"\nVerification: {'PASSED' if changed else 'FAILED'}")
+
     if not changed:
         current = call_get_task(blocked_task_id)["status"]
         retry_message = (
@@ -343,21 +340,17 @@ def main() -> None:
             f"Current status from get_task: '{current}'. "
             f"Please call update_task_status now with the appropriate action."
         )
-        print("Verification: FAILED — agent did not update task, retrying...")
-        print("\n=== Agent Process ===")
+        print("\n=== MCP Prompt ===")
+        print(f"\n{retry_message}")
+        print("\n=== Agent ===")
         print(f"\nRunning agent (session: {session_uuid}, resume)...")
         retry_data = run_claude_p_resume(session_uuid, retry_message)
-        print("\n=== Agent Response ===")
-        print(f"\n{retry_data['result']}\n")
-        changed = verify_update(blocked_task_id, baseline_status)
-        print(f"Verification: {'PASSED' if changed else 'FAILED'}")
         _print_summary(retry_data)
-    else:
-        print("Verification: PASSED")
-        _print_summary(run_data)
+        after_data = read_resource("accounts://all")
+        display_delta(data, after_data)
+        changed = verify_update(blocked_task_id, baseline_status)
+        print(f"\nVerification: {'PASSED' if changed else 'FAILED'}")
 
-    after_data = read_resource("accounts://all")
-    display_delta(data, after_data)
     display_accounts(after_data)
 
 
