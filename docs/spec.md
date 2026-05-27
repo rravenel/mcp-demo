@@ -1,7 +1,7 @@
 # Feature & Demo Spec
 *Delivery Manager MCP Server*
 
-This document captures implementation decisions and demo design agreed during planning. It is the working spec for Claude Code. The project definition is in `delivery_manager_mcp_project_def.md`.
+This document captures implementation decisions and demo design agreed during planning. It is the working spec for Claude Code.
 
 ---
 
