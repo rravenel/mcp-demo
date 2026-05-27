@@ -16,6 +16,19 @@ This is a deliberate demonstration, not a general-purpose application. Auth, mul
 
 ---
 
+## Configuration
+
+All tuneable settings live in **`config.py`**:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `MCP_PORT` | `8000` | Port the MCP server listens on |
+| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Model used for the agent subprocess |
+
+If port 8000 conflicts with another local service, change `MCP_PORT` in `config.py`. `demo.sh` reads this value and regenerates `.mcp.json` at startup — no other files need updating.
+
+---
+
 ## Running the demo
 
 ```bash

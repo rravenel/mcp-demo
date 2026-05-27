@@ -4,7 +4,9 @@ import uuid
 
 import httpx
 
-MCP_URL = "http://localhost:8000/mcp"
+from config import CLAUDE_MODEL, MCP_PORT
+
+MCP_URL = f"http://localhost:{MCP_PORT}/mcp"
 
 _session_id: str | None = None
 _request_counter = 0
@@ -55,40 +57,48 @@ def initialize() -> None:
     response.raise_for_status()
     _session_id = response.headers.get("Mcp-Session-Id")
 
-    _post({
-        "jsonrpc": "2.0",
-        "method": "notifications/initialized",
-        "params": {},
-    })
+    _post(
+        {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {},
+        }
+    )
 
 
 def read_resource(uri: str) -> list:
-    result = _post({
-        "jsonrpc": "2.0",
-        "id": _next_id(),
-        "method": "resources/read",
-        "params": {"uri": uri},
-    })
+    result = _post(
+        {
+            "jsonrpc": "2.0",
+            "id": _next_id(),
+            "method": "resources/read",
+            "params": {"uri": uri},
+        }
+    )
     return result["result"]["contents"]
 
 
 def get_prompt(name: str, arguments: dict) -> list:
-    result = _post({
-        "jsonrpc": "2.0",
-        "id": _next_id(),
-        "method": "prompts/get",
-        "params": {"name": name, "arguments": arguments},
-    })
+    result = _post(
+        {
+            "jsonrpc": "2.0",
+            "id": _next_id(),
+            "method": "prompts/get",
+            "params": {"name": name, "arguments": arguments},
+        }
+    )
     return result["result"]["messages"]
 
 
 def call_get_task(task_id: str) -> dict:
-    result = _post({
-        "jsonrpc": "2.0",
-        "id": _next_id(),
-        "method": "tools/call",
-        "params": {"name": "get_task", "arguments": {"task_id": task_id}},
-    })
+    result = _post(
+        {
+            "jsonrpc": "2.0",
+            "id": _next_id(),
+            "method": "tools/call",
+            "params": {"name": "get_task", "arguments": {"task_id": task_id}},
+        }
+    )
     content = result["result"]["content"]
     if isinstance(content, list):
         return json.loads(content[0]["text"])
@@ -161,7 +171,7 @@ def display_delta(before_data: list, after_data: list) -> None:
     for task_id, before_status in before_tasks.items():
         after_status = after_tasks.get(task_id, before_status)
         if before_status != after_status:
-            print(f"  Task {task_id}: {before_status} → {after_status}")
+            print(f"\n  Task {task_id}: {before_status} → {after_status}")
             changed = True
     if not changed:
         print("  (no task status changes detected)")
@@ -172,32 +182,93 @@ def display_delta(before_data: list, after_data: list) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _run_claude(cmd: list[str]) -> str:
+def _run_claude(cmd: list[str]) -> dict:
+    final_event: dict | None = None
+    lines: list[str] = []
+
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    raw = proc.stdout.read()
+    for raw in proc.stdout:
+        raw = raw.rstrip()
+        if not raw:
+            continue
+        lines.append(raw)
+        try:
+            event = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+
+        etype = event.get("type")
+
+        if etype == "system" and event.get("subtype") == "init":
+            for srv in event.get("mcp_servers", []):
+                print(f"  MCP: {srv.get('name')} ({srv.get('status', 'unknown')})")
+
+        elif etype == "assistant":
+            content = event.get("message", {}).get("content", [])
+            texts = [b["text"] for b in content if b.get("type") == "text" and b.get("text")]
+            calls = [b for b in content if b.get("type") == "tool_use"]
+            if texts and calls:
+                preview = texts[0].replace("\n", " ")
+                print(f"\n  {preview[:100]}{'…' if len(preview) > 100 else ''}")
+            for c in calls:
+                args = json.dumps(c.get("input", {}))
+                print(f"    → {c['name']}({args[:80]}{'…' if len(args) > 80 else ''})")
+
+        elif etype == "user":
+            for block in event.get("message", {}).get("content", []):
+                if block.get("type") == "tool_result":
+                    rc = block.get("content", "")
+                    if isinstance(rc, list):
+                        rc = rc[0].get("text", "") if rc else ""
+                    preview = str(rc).replace("\n", " ")
+                    print(f"    ← {preview[:100]}{'…' if len(preview) > 100 else ''}")
+
+        elif etype == "result":
+            final_event = event
+
     proc.wait()
-    try:
-        data = json.loads(raw)
-        result_text = data.get("result", "(no result text)")
-        turns = data.get("num_turns", "?")
-        cost = data.get("total_cost_usd", 0)
-        print(f"{result_text}\n")
-        print(f"  turns: {turns}  |  cost: ${cost:.4f}")
-    except (json.JSONDecodeError, KeyError):
-        print(raw)
-    return raw
+
+    if not final_event:
+        print("".join(lines))
+        return {"result": "(no result text)", "num_turns": 0, "cost": 0.0, "usage": {}}
+
+    return {
+        "result": final_event.get("result", "(no result text)"),
+        "num_turns": final_event.get("num_turns", "?"),
+        "cost": final_event.get("total_cost_usd", 0),
+        "usage": final_event.get("usage", {}),
+    }
 
 
-CLAUDE_MODEL = "claude-sonnet-4-6"
-
-
-def run_claude_p(prompt_text: str, session_uuid: str) -> str:
-    cmd = ["claude", "-p", "--model", CLAUDE_MODEL, "--session-id", session_uuid, "--output-format", "json", prompt_text]
+def run_claude_p(prompt_text: str, session_uuid: str) -> dict:
+    cmd = [
+        "claude",
+        "-p",
+        "--model",
+        CLAUDE_MODEL,
+        "--session-id",
+        session_uuid,
+        "--verbose",
+        "--output-format",
+        "stream-json",
+        prompt_text,
+    ]
     return _run_claude(cmd)
 
 
-def run_claude_p_resume(session_uuid: str, message: str) -> str:
-    cmd = ["claude", "-p", "--model", CLAUDE_MODEL, "--resume", session_uuid, "--output-format", "json", message]
+def run_claude_p_resume(session_uuid: str, message: str) -> dict:
+    cmd = [
+        "claude",
+        "-p",
+        "--model",
+        CLAUDE_MODEL,
+        "--resume",
+        session_uuid,
+        "--verbose",
+        "--output-format",
+        "stream-json",
+        message,
+    ]
     return _run_claude(cmd)
 
 
@@ -216,8 +287,21 @@ def verify_update(task_id: str, baseline_status: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _print_summary(run_data: dict) -> None:
+    usage = run_data.get("usage", {})
+    inp = usage.get("input_tokens", 0)
+    cache_r = usage.get("cache_read_input_tokens", 0)
+    cache_w = usage.get("cache_creation_input_tokens", 0)
+    out = usage.get("output_tokens", 0)
+    print("\nUsage:")
+    print(f"  turns: {run_data.get('num_turns', '?')}  |  cost: ${run_data.get('cost', 0):.4f}")
+    print(
+        f"  tokens: {inp:,} input + {cache_r:,} cache_read + {cache_w:,} cache_write + {out:,} output"
+    )
+
+
 def main() -> None:
-    print("Initializing MCP session...")
+    print(f"Connecting to MCP server at {MCP_URL}...")
     initialize()
 
     print("\nReading accounts resource...")
@@ -233,13 +317,22 @@ def main() -> None:
     blocked_task_id = blocked_task["id"]
     baseline_status = "blocked"
 
-    print(f"\nFetching prompt for account: {globex_id}")
+    print("\n=== Agent Prompt ===")
+    print(f"\nFetching prompt for {globex['name']}...")
     messages = get_prompt("assess-account", {"account_id": globex_id})
     filled_prompt = messages[0]["content"]["text"]
+    prompt_preview = "\n".join(f"  {line}" for line in filled_prompt.splitlines() if line.strip())[
+        :300
+    ]
+    print(f"\n{prompt_preview}\n  ...")
 
     session_uuid = str(uuid.uuid4())
-    print(f"\nRunning agent (session: {session_uuid})...\n")
-    run_claude_p(filled_prompt, session_uuid)
+    print("\n=== Agent Process ===")
+    print(f"\nRunning agent (session: {session_uuid})...")
+    run_data = run_claude_p(filled_prompt, session_uuid)
+
+    print("\n=== Agent Response ===")
+    print(f"\n{run_data['result']}\n")
 
     changed = verify_update(blocked_task_id, baseline_status)
     if not changed:
@@ -250,12 +343,18 @@ def main() -> None:
             f"Current status from get_task: '{current}'. "
             f"Please call update_task_status now with the appropriate action."
         )
-        print("\nAgent did not update task — retrying...\n")
-        run_claude_p_resume(session_uuid, retry_message)
+        print("Verification: FAILED — agent did not update task, retrying...")
+        print("\n=== Agent Process ===")
+        print(f"\nRunning agent (session: {session_uuid}, resume)...")
+        retry_data = run_claude_p_resume(session_uuid, retry_message)
+        print("\n=== Agent Response ===")
+        print(f"\n{retry_data['result']}\n")
         changed = verify_update(blocked_task_id, baseline_status)
-        print(f"\nFinal verification: {'PASSED' if changed else 'FAILED'}")
+        print(f"Verification: {'PASSED' if changed else 'FAILED'}")
+        _print_summary(retry_data)
     else:
-        print("\nVerification: PASSED")
+        print("Verification: PASSED")
+        _print_summary(run_data)
 
     after_data = read_resource("accounts://all")
     display_delta(data, after_data)

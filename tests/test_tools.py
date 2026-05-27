@@ -38,6 +38,7 @@ def test_get_account_status_not_found(seeded_db_conn):
 def test_get_account_status_no_active_project(db_conn, monkeypatch):
     monkeypatch.setattr(db, "get_connection", lambda: _NoClose(db_conn))
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'complete', ?)", (now,))
@@ -49,6 +50,7 @@ def test_get_account_status_no_active_project(db_conn, monkeypatch):
 def test_get_account_status_no_current_milestone(db_conn, monkeypatch):
     monkeypatch.setattr(db, "get_connection", lambda: _NoClose(db_conn))
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
@@ -112,7 +114,7 @@ def test_update_task_milestone_not_complete(seeded_db_conn):
     assert result["milestone_advanced"] is False
     blocking = result["blocking_tasks"]
     ids = [t["id"] for t in blocking]
-    assert "globex-t3" in ids   # invalid task blocks milestone
+    assert "globex-t3" in ids  # invalid task blocks milestone
     assert "globex-t1" not in ids  # complete task excluded
 
 
@@ -125,13 +127,18 @@ def test_update_task_task_and_updated_at_persisted(seeded_db_conn):
 def test_update_task_milestone_advanced(db_conn, monkeypatch):
     monkeypatch.setattr(db, "get_connection", lambda: _NoClose(db_conn))
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m2', 'p1', 'M2', 2, 'not_started', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t2', 'm2', 'Task 2', 'open', NULL, NULL, ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,)
+    )
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t2', 'm2', 'Task 2', 'open', NULL, NULL, ?)", (now,)
+    )
     result = server.update_task_status("t1", "complete")
     assert result["milestone_advanced"] is True
     m1_row = db_conn.execute("SELECT status FROM milestones WHERE id = 'm1'").fetchone()
@@ -143,11 +150,14 @@ def test_update_task_milestone_advanced(db_conn, monkeypatch):
 def test_update_task_full_cascade(db_conn, monkeypatch):
     monkeypatch.setattr(db, "get_connection", lambda: _NoClose(db_conn))
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'at_risk', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'at_risk', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,)
+    )
     result = server.update_task_status("t1", "complete")
     assert result["project_complete"] is True
     assert result["account_status_updated"] is True

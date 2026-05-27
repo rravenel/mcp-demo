@@ -100,8 +100,12 @@ def test_fetch_tasks_for_milestone_with_tasks(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t2', 'm1', 'Task 2', 'complete', NULL, NULL, ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,)
+    )
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t2', 'm1', 'Task 2', 'complete', NULL, NULL, ?)", (now,)
+    )
     rows = db.fetch_tasks_for_milestone(db_conn, "m1")
     assert len(rows) == 2
     assert rows[0]["id"] == "t1"
@@ -126,7 +130,10 @@ def test_fetch_task_found(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', 'Alice', 'some blocker', ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', 'Alice', 'some blocker', ?)",
+        (now,),
+    )
     row = db.fetch_task(db_conn, "t1")
     assert row is not None
     assert row["id"] == "t1"
@@ -149,7 +156,9 @@ def test_update_task(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', 'Alice', 'blocker', ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', 'Alice', 'blocker', ?)", (now,)
+    )
     new_ts = _ts()
     db.update_task(db_conn, "t1", "complete", new_ts)
     row = db.fetch_task(db_conn, "t1")
@@ -170,8 +179,12 @@ def test_fetch_incomplete_tasks_excludes_complete(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'complete', NULL, NULL, ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t2', 'm1', 'Task 2', 'blocked', NULL, 'b', ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'complete', NULL, NULL, ?)", (now,)
+    )
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t2', 'm1', 'Task 2', 'blocked', NULL, 'b', ?)", (now,)
+    )
     rows = db.fetch_incomplete_tasks_for_milestone(db_conn, "m1")
     ids = [r["id"] for r in rows]
     assert "t1" not in ids
@@ -183,7 +196,9 @@ def test_fetch_incomplete_tasks_includes_invalid(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'invalid', NULL, NULL, ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'invalid', NULL, NULL, ?)", (now,)
+    )
     rows = db.fetch_incomplete_tasks_for_milestone(db_conn, "m1")
     assert len(rows) == 1
     assert rows[0]["id"] == "t1"
@@ -194,7 +209,9 @@ def test_fetch_incomplete_tasks_empty_when_all_complete(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'complete', NULL, NULL, ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'complete', NULL, NULL, ?)", (now,)
+    )
     assert db.fetch_incomplete_tasks_for_milestone(db_conn, "m1") == []
 
 
@@ -208,7 +225,9 @@ def test_fetch_milestone_for_task(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', NULL, NULL, ?)", (now,)
+    )
     row = db.fetch_milestone_for_task(db_conn, "t1")
     assert row["id"] == "m1"
     assert row["project_id"] == "p1"
@@ -226,7 +245,9 @@ def test_complete_milestone(db_conn):
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
     new_ts = _ts()
     db.complete_milestone(db_conn, "m1", new_ts)
-    row = db_conn.execute("SELECT status, updated_at, name FROM milestones WHERE id = 'm1'").fetchone()
+    row = db_conn.execute(
+        "SELECT status, updated_at, name FROM milestones WHERE id = 'm1'"
+    ).fetchone()
     assert row["status"] == "complete"
     assert row["updated_at"] == new_ts
     assert row["name"] == "M1"
@@ -286,7 +307,9 @@ def test_complete_project(db_conn):
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     new_ts = _ts()
     db.complete_project(db_conn, "p1", new_ts)
-    row = db_conn.execute("SELECT status, updated_at, name FROM projects WHERE id = 'p1'").fetchone()
+    row = db_conn.execute(
+        "SELECT status, updated_at, name FROM projects WHERE id = 'p1'"
+    ).fetchone()
     assert row["status"] == "complete"
     assert row["updated_at"] == new_ts
     assert row["name"] == "Proj"
@@ -334,7 +357,9 @@ def test_fetch_all_accounts_nested_structure(db_conn):
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO milestones VALUES ('m1', 'p1', 'M1', 1, 'in_progress', ?)", (now,))
-    db_conn.execute("INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', 'Alice', NULL, ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO tasks VALUES ('t1', 'm1', 'Task 1', 'open', 'Alice', NULL, ?)", (now,)
+    )
     rows = db.fetch_all_accounts_with_context(db_conn)
     assert len(rows) == 1
     acct = rows[0]

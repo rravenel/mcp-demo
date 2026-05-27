@@ -2,6 +2,7 @@
 set -euo pipefail
 
 PID_FILE=".server.pid"
+MCP_PORT=$(uv run python -c "from config import MCP_PORT; print(MCP_PORT)" 2>/dev/null || echo 8000)
 
 _kill_pid() {
     local pid=$1
@@ -33,10 +34,10 @@ if [ -f "$PID_FILE" ]; then
     fi
 fi
 
-# Fallback: find whatever is listening on port 8000
-PORT_PID=$(lsof -ti:8000 2>/dev/null || true)
+# Fallback: find whatever is listening on the configured port
+PORT_PID=$(lsof -ti:"${MCP_PORT}" 2>/dev/null || true)
 if [ -n "$PORT_PID" ]; then
-    echo "No pid file found but port 8000 is in use — stopping process $PORT_PID"
+    echo "No pid file found but port ${MCP_PORT} is in use — stopping process $PORT_PID"
     _kill_pid "$PORT_PID"
     exit 0
 fi

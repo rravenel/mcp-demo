@@ -74,6 +74,8 @@ Do not pad messages with filler phrases ("initial implementation of", "adds supp
 
 **No force-push, no amend after push:** Once a commit is pushed, do not rewrite it. If a mistake was made, fix it in a new commit.
 
+**Commits must leave the repo in a working state:** Every commit on its own must produce a repo that builds, passes tests, and runs correctly. Never commit a partial refactor — if a change spans multiple files, all files go in together. A cloned repo at any commit should work without requiring subsequent commits to fix it.
+
 **Check before committing:** Run `git diff --staged` before committing to verify only the intended changes are staged. Run `uv run ruff check .` and `uv run pytest` to confirm the code is clean before the commit lands.
 
 **`.gitignore` is authoritative:** Do not commit files that `.gitignore` excludes. If a needed file is being ignored unexpectedly, fix `.gitignore` rather than using `git add -f`.

@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 import fastmcp
+
+from config import MCP_PORT
 from fastmcp.prompts import Message
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -21,23 +23,51 @@ def get_account_status(account_id: str) -> dict:
     try:
         account = db.fetch_account(conn, account_id)
         if not account:
-            return {"error": True, "code": "ACCOUNT_NOT_FOUND", "reason": f"No account with id '{account_id}'"}
+            return {
+                "error": True,
+                "code": "ACCOUNT_NOT_FOUND",
+                "reason": f"No account with id '{account_id}'",
+            }
 
         project = db.fetch_active_project(conn, account["id"])
         if not project:
-            return {"error": True, "code": "NO_ACTIVE_PROJECT", "reason": f"No active project for account '{account_id}'"}
+            return {
+                "error": True,
+                "code": "NO_ACTIVE_PROJECT",
+                "reason": f"No active project for account '{account_id}'",
+            }
 
         milestone = db.fetch_current_milestone(conn, project["id"])
         if not milestone:
-            return {"error": True, "code": "NO_CURRENT_MILESTONE", "reason": f"No current milestone for project '{project['id']}'"}
+            return {
+                "error": True,
+                "code": "NO_CURRENT_MILESTONE",
+                "reason": f"No current milestone for project '{project['id']}'",
+            }
 
         tasks = db.fetch_tasks_for_milestone(conn, milestone["id"])
         return {
-            "account":   {"id": account["id"], "name": account["name"], "status": account["status"], "updated_at": account["updated_at"]},
-            "project":   {"id": project["id"], "name": project["name"], "status": project["status"]},
-            "milestone": {"id": milestone["id"], "name": milestone["name"], "status": milestone["status"]},
+            "account": {
+                "id": account["id"],
+                "name": account["name"],
+                "status": account["status"],
+                "updated_at": account["updated_at"],
+            },
+            "project": {"id": project["id"], "name": project["name"], "status": project["status"]},
+            "milestone": {
+                "id": milestone["id"],
+                "name": milestone["name"],
+                "status": milestone["status"],
+            },
             "tasks": [
-                {"id": t["id"], "title": t["title"], "status": t["status"], "owner": t["owner"], "blocker": t["blocker"], "updated_at": t["updated_at"]}
+                {
+                    "id": t["id"],
+                    "title": t["title"],
+                    "status": t["status"],
+                    "owner": t["owner"],
+                    "blocker": t["blocker"],
+                    "updated_at": t["updated_at"],
+                }
                 for t in tasks
             ],
         }
@@ -51,8 +81,19 @@ def get_task(task_id: str) -> dict:
     try:
         task = db.fetch_task(conn, task_id)
         if not task:
-            return {"error": True, "code": "TASK_NOT_FOUND", "reason": f"No task with id '{task_id}'"}
-        return {"id": task["id"], "title": task["title"], "status": task["status"], "owner": task["owner"], "blocker": task["blocker"], "updated_at": task["updated_at"]}
+            return {
+                "error": True,
+                "code": "TASK_NOT_FOUND",
+                "reason": f"No task with id '{task_id}'",
+            }
+        return {
+            "id": task["id"],
+            "title": task["title"],
+            "status": task["status"],
+            "owner": task["owner"],
+            "blocker": task["blocker"],
+            "updated_at": task["updated_at"],
+        }
     finally:
         conn.close()
 
@@ -78,7 +119,12 @@ def update_task_status(task_id: str, new_status: str) -> dict:
             current = task["status"] if task else None
         finally:
             conn.close()
-        return {"error": True, "code": "INVALID_STATUS", "reason": f"'{new_status}' is not a valid status", "current_status": current}
+        return {
+            "error": True,
+            "code": "INVALID_STATUS",
+            "reason": f"'{new_status}' is not a valid status",
+            "current_status": current,
+        }
 
     conn = db.get_connection()
     try:
@@ -88,7 +134,11 @@ def update_task_status(task_id: str, new_status: str) -> dict:
         task = db.fetch_task(conn, task_id)
         if not task:
             conn.rollback()
-            return {"error": True, "code": "TASK_NOT_FOUND", "reason": f"No task with id '{task_id}'"}
+            return {
+                "error": True,
+                "code": "TASK_NOT_FOUND",
+                "reason": f"No task with id '{task_id}'",
+            }
 
         try:
             db.update_task(conn, task_id, new_status, now)
@@ -104,7 +154,12 @@ def update_task_status(task_id: str, new_status: str) -> dict:
                     "task_updated": {"id": task_id, "new_status": new_status},
                     "milestone_advanced": False,
                     "blocking_tasks": [
-                        {"id": t["id"], "title": t["title"], "status": t["status"], "blocker": t["blocker"]}
+                        {
+                            "id": t["id"],
+                            "title": t["title"],
+                            "status": t["status"],
+                            "blocker": t["blocker"],
+                        }
                         for t in incomplete_tasks
                     ],
                 }
@@ -120,7 +175,11 @@ def update_task_status(task_id: str, new_status: str) -> dict:
                 return {
                     "task_updated": {"id": task_id, "new_status": new_status},
                     "milestone_advanced": True,
-                    "milestone": {"id": milestone_id, "name": milestone["name"], "status": "complete"},
+                    "milestone": {
+                        "id": milestone_id,
+                        "name": milestone["name"],
+                        "status": "complete",
+                    },
                     "project_complete": False,
                     "remaining_milestones": [
                         {"id": m["id"], "name": m["name"], "status": m["status"]}
@@ -141,7 +200,11 @@ def update_task_status(task_id: str, new_status: str) -> dict:
                 "project_complete": True,
                 "project": {"id": project_id, "name": project["name"], "status": "complete"},
                 "account_status_updated": True,
-                "account": {"id": account_id, "name": updated_account["name"], "status": updated_account["status"]},
+                "account": {
+                    "id": account_id,
+                    "name": updated_account["name"],
+                    "status": updated_account["status"],
+                },
             }
         except Exception as exc:
             conn.rollback()
@@ -160,7 +223,9 @@ def assess_account(account_id: str) -> list[Message]:
     blocked_tasks = [t for t in status["tasks"] if t["status"] == "blocked"]
     task_lines = []
     for t in blocked_tasks:
-        updated = datetime.strptime(t["updated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        updated = datetime.strptime(t["updated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
         days_blocked = (now - updated).days
         task_lines.append(
             f"  - id: {t['id']}\n"
@@ -173,9 +238,9 @@ def assess_account(account_id: str) -> list[Message]:
     blocked_section = "\n".join(task_lines) if task_lines else "  (none)"
     text = f"""## Account Briefing
 
-Account: {status['account']['name']} (status: {status['account']['status']})
-Project: {status['project']['name']} (status: {status['project']['status']})
-Current Milestone: {status['milestone']['name']} (status: {status['milestone']['status']})
+Account: {status["account"]["name"]} (status: {status["account"]["status"]})
+Project: {status["project"]["name"]} (status: {status["project"]["status"]})
+Current Milestone: {status["milestone"]["name"]} (status: {status["milestone"]["status"]})
 
 Blocked tasks:
 {blocked_section}
@@ -197,4 +262,4 @@ fits the situation and call `update_task_status` now.
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=MCP_PORT)

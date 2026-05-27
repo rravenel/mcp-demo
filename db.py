@@ -88,7 +88,7 @@ def fetch_current_milestone(conn: sqlite3.Connection, project_id: str):
     if row:
         return row
     return conn.execute(
-        'SELECT id, name, status FROM milestones WHERE project_id = ? AND status = \'not_started\' ORDER BY "order" ASC LIMIT 1',
+        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status = 'not_started' ORDER BY \"order\" ASC LIMIT 1",
         (project_id,),
     ).fetchone()
 
@@ -142,7 +142,7 @@ def complete_milestone(conn: sqlite3.Connection, milestone_id: str, now: str) ->
 
 def fetch_incomplete_milestones_for_project(conn: sqlite3.Connection, project_id: str):
     return conn.execute(
-        'SELECT id, name, status FROM milestones WHERE project_id = ? AND status != \'complete\' ORDER BY "order"',
+        "SELECT id, name, status FROM milestones WHERE project_id = ? AND status != 'complete' ORDER BY \"order\"",
         (project_id,),
     ).fetchall()
 

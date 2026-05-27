@@ -1,4 +1,5 @@
 """Seed script — populates data/delivery.db with demo data. Not application code."""
+
 import os
 import sqlite3
 from datetime import datetime, timezone, timedelta
@@ -49,37 +50,65 @@ CREATE INDEX IF NOT EXISTS idx_tasks_milestone_id    ON tasks(milestone_id);
 
 SEED = [
     # Acme Corp — active account
-    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)",
-     ("acme", "Acme Corp", "active", ts())),
-    ("INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?)",
-     ("acme-proj", "acme", "Acme Onboarding", "active", ts())),
-    ("INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-     ("acme-m1", "acme-proj", "Kickoff & Setup", 1, "complete", ts())),
-    ("INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-     ("acme-m2", "acme-proj", "Integration & Testing", 2, "in_progress", ts())),
-    ("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-     ("acme-t1", "acme-m2", "Configure SSO", "complete", "Alice", None, ts())),
-    ("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-     ("acme-t2", "acme-m2", "Run smoke tests", "complete", "Bob", None, ts())),
-    ("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-     ("acme-t3", "acme-m2", "UAT sign-off", "open", "Carol", None, ts())),
-
+    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)", ("acme", "Acme Corp", "active", ts())),
+    (
+        "INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?)",
+        ("acme-proj", "acme", "Acme Onboarding", "active", ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
+        ("acme-m1", "acme-proj", "Kickoff & Setup", 1, "complete", ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
+        ("acme-m2", "acme-proj", "Integration & Testing", 2, "in_progress", ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
+        ("acme-t1", "acme-m2", "Configure SSO", "complete", "Alice", None, ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
+        ("acme-t2", "acme-m2", "Run smoke tests", "complete", "Bob", None, ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
+        ("acme-t3", "acme-m2", "UAT sign-off", "open", "Carol", None, ts()),
+    ),
     # Globex Inc — at_risk account
-    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)",
-     ("globex", "Globex Inc", "at_risk", ts())),
-    ("INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?)",
-     ("globex-proj", "globex", "Globex Onboarding", "at_risk", ts())),
-    ("INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-     ("globex-m1", "globex-proj", "Kickoff & Setup", 1, "complete", ts())),
-    ("INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
-     ("globex-m2", "globex-proj", "Integration & Testing", 2, "in_progress", ts())),
-    ("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-     ("globex-t1", "globex-m2", "Configure SSO", "complete", "Dave", None, ts())),
-    ("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-     ("globex-t2", "globex-m2", "Customer data migration sign-off",
-      "blocked", "Eve", "Customer has not submitted the required compliance document", ts(14))),
-    ("INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
-     ("globex-t3", "globex-m2", "Legacy API decommission", "invalid", None, None, ts())),
+    ("INSERT OR REPLACE INTO accounts VALUES (?,?,?,?)", ("globex", "Globex Inc", "at_risk", ts())),
+    (
+        "INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?)",
+        ("globex-proj", "globex", "Globex Onboarding", "at_risk", ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
+        ("globex-m1", "globex-proj", "Kickoff & Setup", 1, "complete", ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO milestones VALUES (?,?,?,?,?,?)",
+        ("globex-m2", "globex-proj", "Integration & Testing", 2, "in_progress", ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
+        ("globex-t1", "globex-m2", "Configure SSO", "complete", "Dave", None, ts()),
+    ),
+    (
+        "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
+        (
+            "globex-t2",
+            "globex-m2",
+            "Customer data migration sign-off",
+            "blocked",
+            "Eve",
+            "Customer has not submitted the required compliance document",
+            ts(14),
+        ),
+    ),
+    (
+        "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?)",
+        ("globex-t3", "globex-m2", "Legacy API decommission", "invalid", None, None, ts()),
+    ),
 ]
 
 

@@ -4,6 +4,7 @@ scratch.py
 .venv
 .server.pid
 .server.log
+.mcp.json
 data/delivery.db
 
 # Byte-compiled / optimized / DLL files

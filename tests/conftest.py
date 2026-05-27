@@ -47,20 +47,55 @@ def seeded_db_conn(db_conn):
 
     # Acme Corp — active account
     conn.execute("INSERT INTO accounts VALUES ('acme', 'Acme Corp', 'active', ?)", (now,))
-    conn.execute("INSERT INTO projects VALUES ('acme-proj', 'acme', 'Acme Project', 'active', ?)", (now,))
-    conn.execute("INSERT INTO milestones VALUES ('acme-m1', 'acme-proj', 'Milestone 1', 1, 'complete', ?)", (now,))
-    conn.execute("INSERT INTO milestones VALUES ('acme-m2', 'acme-proj', 'Milestone 2', 2, 'in_progress', ?)", (now,))
-    conn.execute("INSERT INTO tasks VALUES ('acme-t1', 'acme-m2', 'Task 1', 'complete', 'Alice', NULL, ?)", (now,))
-    conn.execute("INSERT INTO tasks VALUES ('acme-t2', 'acme-m2', 'Task 2', 'complete', 'Bob', NULL, ?)", (now,))
-    conn.execute("INSERT INTO tasks VALUES ('acme-t3', 'acme-m2', 'Task 3', 'open', 'Carol', NULL, ?)", (now,))
+    conn.execute(
+        "INSERT INTO projects VALUES ('acme-proj', 'acme', 'Acme Project', 'active', ?)", (now,)
+    )
+    conn.execute(
+        "INSERT INTO milestones VALUES ('acme-m1', 'acme-proj', 'Milestone 1', 1, 'complete', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO milestones VALUES ('acme-m2', 'acme-proj', 'Milestone 2', 2, 'in_progress', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO tasks VALUES ('acme-t1', 'acme-m2', 'Task 1', 'complete', 'Alice', NULL, ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO tasks VALUES ('acme-t2', 'acme-m2', 'Task 2', 'complete', 'Bob', NULL, ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO tasks VALUES ('acme-t3', 'acme-m2', 'Task 3', 'open', 'Carol', NULL, ?)",
+        (now,),
+    )
 
     # Globex Inc — at_risk account
     conn.execute("INSERT INTO accounts VALUES ('globex', 'Globex Inc', 'at_risk', ?)", (now,))
-    conn.execute("INSERT INTO projects VALUES ('globex-proj', 'globex', 'Globex Project', 'at_risk', ?)", (now,))
-    conn.execute("INSERT INTO milestones VALUES ('globex-m1', 'globex-proj', 'Milestone 1', 1, 'complete', ?)", (now,))
-    conn.execute("INSERT INTO milestones VALUES ('globex-m2', 'globex-proj', 'Milestone 2', 2, 'in_progress', ?)", (now,))
-    conn.execute("INSERT INTO tasks VALUES ('globex-t1', 'globex-m2', 'Task 1', 'complete', 'Dave', NULL, ?)", (now,))
-    conn.execute("INSERT INTO tasks VALUES ('globex-t2', 'globex-m2', 'Task 2', 'blocked', 'Eve', 'Waiting on customer sign-off', ?)", (past,))
-    conn.execute("INSERT INTO tasks VALUES ('globex-t3', 'globex-m2', 'Task 3', 'invalid', NULL, NULL, ?)", (now,))
+    conn.execute(
+        "INSERT INTO projects VALUES ('globex-proj', 'globex', 'Globex Project', 'at_risk', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO milestones VALUES ('globex-m1', 'globex-proj', 'Milestone 1', 1, 'complete', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO milestones VALUES ('globex-m2', 'globex-proj', 'Milestone 2', 2, 'in_progress', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO tasks VALUES ('globex-t1', 'globex-m2', 'Task 1', 'complete', 'Dave', NULL, ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO tasks VALUES ('globex-t2', 'globex-m2', 'Task 2', 'blocked', 'Eve', 'Waiting on customer sign-off', ?)",
+        (past,),
+    )
+    conn.execute(
+        "INSERT INTO tasks VALUES ('globex-t3', 'globex-m2', 'Task 3', 'invalid', NULL, NULL, ?)",
+        (now,),
+    )
 
     yield conn

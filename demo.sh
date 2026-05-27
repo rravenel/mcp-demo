@@ -10,6 +10,20 @@ VERSION=$(cat .claude-code-version)
 claude install "$VERSION"
 
 uv sync
+
+MCP_PORT=$(uv run python -c "from config import MCP_PORT; print(MCP_PORT)")
+
+cat > .mcp.json << EOF
+{
+  "mcpServers": {
+    "delivery-manager": {
+      "type": "http",
+      "url": "http://localhost:${MCP_PORT}/mcp"
+    }
+  }
+}
+EOF
+
 uv run python seed.py
 
 # Stop any server already running (previous demo run, manual start, etc.)
@@ -22,7 +36,8 @@ echo $SERVER_PID > .server.pid
 trap "kill $SERVER_PID 2>/dev/null; rm -f .server.pid" EXIT
 
 for i in $(seq 1 10); do
-    if curl -sf http://localhost:8000/health >/dev/null 2>&1; then
+    if curl -sf "http://localhost:${MCP_PORT}/health" >/dev/null 2>&1; then
+        echo "MCP server ready — http://localhost:${MCP_PORT}/mcp (pid ${SERVER_PID})"
         break
     fi
     if [ "$i" -eq 10 ]; then
