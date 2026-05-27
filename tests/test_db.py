@@ -27,24 +27,24 @@ def test_fetch_account_not_found(db_conn):
 
 
 # ---------------------------------------------------------------------------
-# fetch_active_project
+# fetch_current_project
 # ---------------------------------------------------------------------------
 
 
-def test_fetch_active_project_found(db_conn):
+def test_fetch_current_project_found(db_conn):
     now = _ts()
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'active', ?)", (now,))
-    row = db.fetch_active_project(db_conn, "a1")
+    row = db.fetch_current_project(db_conn, "a1")
     assert row is not None
     assert row["id"] == "p1"
 
 
-def test_fetch_active_project_complete_excluded(db_conn):
+def test_fetch_current_project_complete_excluded(db_conn):
     now = _ts()
     db_conn.execute("INSERT INTO accounts VALUES ('a1', 'Acme', 'active', ?)", (now,))
     db_conn.execute("INSERT INTO projects VALUES ('p1', 'a1', 'Proj', 'complete', ?)", (now,))
-    assert db.fetch_active_project(db_conn, "a1") is None
+    assert db.fetch_current_project(db_conn, "a1") is None
 
 
 # ---------------------------------------------------------------------------

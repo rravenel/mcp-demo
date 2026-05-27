@@ -117,7 +117,7 @@ WHERE id = ?
 ```
 Returns one row or `None`.
 
-**`fetch_active_project(conn, account_id)`**
+**`fetch_current_project(conn, account_id)`**
 ```sql
 SELECT id, name, status
 FROM projects
@@ -245,7 +245,7 @@ Fixture: `db_conn`. Each test inserts only the rows it needs.
 - Returns the correct row for a known `account_id`
 - Returns `None` for an unknown `account_id`
 
-**`fetch_active_project`**
+**`fetch_current_project`**
 - Returns a project row for an account with a non-complete project
 - Returns `None` when the account's only project has `status = 'complete'`
 

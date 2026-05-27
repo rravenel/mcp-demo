@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk')),
-    updated_at TEXT NOT NULL
+    updated_at DATETIME NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS projects (
     account_id TEXT NOT NULL REFERENCES accounts(id),
     name       TEXT NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk', 'complete')),
-    updated_at TEXT NOT NULL
+    updated_at DATETIME NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS milestones (
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS milestones (
     name       TEXT NOT NULL,
     "order"    INTEGER NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('not_started', 'in_progress', 'complete')),
-    updated_at TEXT NOT NULL
+    updated_at DATETIME NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     status       TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'pending_customer', 'blocked', 'complete', 'invalid')),
     owner        TEXT,
     blocker      TEXT,
-    updated_at   TEXT NOT NULL
+    updated_at   DATETIME NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_projects_account_id   ON projects(account_id);
@@ -58,7 +58,8 @@ def _now() -> str:
 
 
 def apply_schema(conn: sqlite3.Connection) -> None:
-    conn.executescript(DDL)
+    for stmt in (s.strip() for s in DDL.split(";") if s.strip()):
+        conn.execute(stmt)
 
 
 # ---------------------------------------------------------------------------
@@ -66,21 +67,21 @@ def apply_schema(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 
 
-def fetch_account(conn: sqlite3.Connection, account_id: str):
+def fetch_account(conn: sqlite3.Connection, account_id: str) -> sqlite3.Row | None:
     return conn.execute(
         "SELECT id, name, status, updated_at FROM accounts WHERE id = ?",
         (account_id,),
     ).fetchone()
 
 
-def fetch_active_project(conn: sqlite3.Connection, account_id: str):
+def fetch_current_project(conn: sqlite3.Connection, account_id: str) -> sqlite3.Row | None:
     return conn.execute(
         "SELECT id, name, status FROM projects WHERE account_id = ? AND status != 'complete' LIMIT 1",
         (account_id,),
     ).fetchone()
 
 
-def fetch_current_milestone(conn: sqlite3.Connection, project_id: str):
+def fetch_current_milestone(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row | None:
     row = conn.execute(
         "SELECT id, name, status FROM milestones WHERE project_id = ? AND status = 'in_progress' LIMIT 1",
         (project_id,),
@@ -93,14 +94,14 @@ def fetch_current_milestone(conn: sqlite3.Connection, project_id: str):
     ).fetchone()
 
 
-def fetch_tasks_for_milestone(conn: sqlite3.Connection, milestone_id: str):
+def fetch_tasks_for_milestone(conn: sqlite3.Connection, milestone_id: str) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT id, title, status, owner, blocker, updated_at FROM tasks WHERE milestone_id = ? ORDER BY rowid",
         (milestone_id,),
     ).fetchall()
 
 
-def fetch_task(conn: sqlite3.Connection, task_id: str):
+def fetch_task(conn: sqlite3.Connection, task_id: str) -> sqlite3.Row | None:
     return conn.execute(
         "SELECT id, title, status, owner, blocker, updated_at FROM tasks WHERE id = ?",
         (task_id,),
@@ -114,14 +115,14 @@ def update_task(conn: sqlite3.Connection, task_id: str, new_status: str, now: st
     )
 
 
-def fetch_incomplete_tasks_for_milestone(conn: sqlite3.Connection, milestone_id: str):
+def fetch_incomplete_tasks_for_milestone(conn: sqlite3.Connection, milestone_id: str) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT id, title, status, blocker FROM tasks WHERE milestone_id = ? AND status != 'complete' ORDER BY rowid",
         (milestone_id,),
     ).fetchall()
 
 
-def fetch_milestone_for_task(conn: sqlite3.Connection, task_id: str):
+def fetch_milestone_for_task(conn: sqlite3.Connection, task_id: str) -> sqlite3.Row | None:
     return conn.execute(
         """
         SELECT m.id, m.project_id, m.name, m.status
@@ -140,14 +141,14 @@ def complete_milestone(conn: sqlite3.Connection, milestone_id: str, now: str) ->
     )
 
 
-def fetch_incomplete_milestones_for_project(conn: sqlite3.Connection, project_id: str):
+def fetch_incomplete_milestones_for_project(conn: sqlite3.Connection, project_id: str) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT id, name, status FROM milestones WHERE project_id = ? AND status != 'complete' ORDER BY \"order\"",
         (project_id,),
     ).fetchall()
 
 
-def fetch_project_for_milestone(conn: sqlite3.Connection, milestone_id: str):
+def fetch_project_for_milestone(conn: sqlite3.Connection, milestone_id: str) -> sqlite3.Row | None:
     return conn.execute(
         """
         SELECT p.id, p.account_id, p.name, p.status
@@ -174,13 +175,14 @@ def clear_account_at_risk(conn: sqlite3.Connection, account_id: str, now: str) -
 
 
 def fetch_all_accounts_with_context(conn: sqlite3.Connection) -> list:
+    # N+1 queries per account; intentional at demo scale
     accounts = conn.execute(
         "SELECT id, name, status, updated_at FROM accounts ORDER BY name"
     ).fetchall()
 
     result = []
     for acct in accounts:
-        project_row = fetch_active_project(conn, acct["id"])
+        project_row = fetch_current_project(conn, acct["id"])
         project = None
         if project_row:
             milestone_row = fetch_current_milestone(conn, project_row["id"])

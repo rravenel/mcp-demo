@@ -29,7 +29,7 @@ def get_account_status(account_id: str) -> dict:
                 "reason": f"No account with id '{account_id}'",
             }
 
-        project = db.fetch_active_project(conn, account["id"])
+        project = db.fetch_current_project(conn, account["id"])
         if not project:
             return {
                 "error": True,

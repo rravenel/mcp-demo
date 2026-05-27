@@ -17,14 +17,14 @@ CREATE TABLE IF NOT EXISTS accounts (
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk')),
-    updated_at TEXT NOT NULL
+    updated_at DATETIME NOT NULL
 );
 CREATE TABLE IF NOT EXISTS projects (
     id         TEXT PRIMARY KEY,
     account_id TEXT NOT NULL REFERENCES accounts(id),
     name       TEXT NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('active', 'at_risk', 'complete')),
-    updated_at TEXT NOT NULL
+    updated_at DATETIME NOT NULL
 );
 CREATE TABLE IF NOT EXISTS milestones (
     id         TEXT PRIMARY KEY,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS milestones (
     name       TEXT NOT NULL,
     "order"    INTEGER NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('not_started', 'in_progress', 'complete')),
-    updated_at TEXT NOT NULL
+    updated_at DATETIME NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tasks (
     id           TEXT PRIMARY KEY,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     status       TEXT NOT NULL CHECK (status IN ('open', 'in_progress', 'pending_customer', 'blocked', 'complete', 'invalid')),
     owner        TEXT,
     blocker      TEXT,
-    updated_at   TEXT NOT NULL
+    updated_at   DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_projects_account_id   ON projects(account_id);
 CREATE INDEX IF NOT EXISTS idx_milestones_project_id ON milestones(project_id);
@@ -117,7 +117,8 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     conn.isolation_level = None
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript(DDL)
+    for stmt in (s.strip() for s in DDL.split(";") if s.strip()):
+        conn.execute(stmt)
     for sql, params in SEED:
         conn.execute(sql, params)
     conn.close()
