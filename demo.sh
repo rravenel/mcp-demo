@@ -1,28 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if ! command -v claude &>/dev/null; then
-    echo "Claude Code CLI not found. Install from https://claude.ai/code"
+if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+    echo "ANTHROPIC_API_KEY is not set. Get your key at https://console.anthropic.com/"
     exit 1
 fi
-
-VERSION=$(cat .claude-code-version)
-claude install "$VERSION"
 
 uv sync
 
 MCP_PORT=$(uv run python -c "from config import MCP_PORT; print(MCP_PORT)")
-
-cat > .mcp.json << EOF
-{
-  "mcpServers": {
-    "delivery-manager": {
-      "type": "http",
-      "url": "http://localhost:${MCP_PORT}/mcp"
-    }
-  }
-}
-EOF
 
 uv run python seed.py
 

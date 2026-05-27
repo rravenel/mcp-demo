@@ -8,9 +8,9 @@ This is a deliberate demonstration, not a general-purpose application. Auth, mul
 
 ## Prerequisites
 
-- **Claude Code CLI** — required to drive the agent loop. Install from [claude.ai/code](https://claude.ai/code) or via:
+- **ANTHROPIC_API_KEY** — set in your environment before running. Get a key at [console.anthropic.com](https://console.anthropic.com/).
   ```bash
-  npm install -g @anthropic-ai/claude-code
+  export ANTHROPIC_API_KEY=sk-ant-...
   ```
 - **uv** — Python package manager. Install from [docs.astral.sh/uv](https://docs.astral.sh/uv).
 
@@ -18,14 +18,7 @@ This is a deliberate demonstration, not a general-purpose application. Auth, mul
 
 ## Configuration
 
-All tuneable settings live in **`config.py`**:
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `MCP_PORT` | `8000` | Port the MCP server listens on |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Model used for the agent subprocess |
-
-If port 8000 conflicts with another local service, change `MCP_PORT` in `config.py`. `demo.sh` reads this value and regenerates `.mcp.json` at startup — no other files need updating.
+**`config.py`** has one setting: `MCP_PORT` (default `8000`). Change it if port 8000 conflicts with another local service — `demo.sh` reads it at startup.
 
 ---
 
@@ -42,7 +35,7 @@ The script installs the pinned Claude Code version, installs Python dependencies
 ./stop.sh
 ```
 
-Execution incurs an inference cost of ~$0.05–0.07 using Sonnet 4.6 (May 2026). The dominant cost is Claude Code's own session context (~49k tokens loaded per invocation), not the demo prompt itself.
+Execution incurs an inference cost of <$0.01 est. (May 2026, Haiku 4.5). See the Usage block in the demo output for the exact figure.
 
 ---
 
@@ -56,7 +49,7 @@ The demo sequence:
 
 2. **Prompt fetch** — `demo.py` calls the `assess-account` prompt template with Globex's account ID. The server-side handler calls `get_account_status` internally and returns a filled briefing: milestone status, actionable blocked tasks, days since last update.
 
-3. **Agent loop** — `claude -p` receives the filled prompt and calls `update_task_status` to mark the blocked task as `pending_customer` (nudge action). The flow tool executes the cascade: task updated, milestone check runs, the `invalid` task prevents milestone advancement, structured result returned. The agent concludes: nudge sent, milestone blocked by invalid task, recommends admin review.
+3. **Agent loop** — the agent receives the filled prompt and calls `update_task_status` to mark the blocked task as `pending_customer` (nudge action). The flow tool executes the cascade: task updated, milestone check runs, the `invalid` task prevents milestone advancement, structured result returned. The agent concludes: nudge sent, milestone blocked by invalid task, recommends admin review.
 
 4. **Verification** — `demo.py` calls `get_task` to confirm the status change. If the update didn't happen, the session is resumed (leveraging prompt cache) with the verification result, and the agent retries.
 
@@ -91,7 +84,7 @@ This demonstrates that the system correctly identifies and communicates constrai
 - Python, `fastmcp` (streamable HTTP transport)
 - SQLite (no external database)
 - `httpx` for the demo script's MCP client (raw POST requests — no SDK)
-- Claude Code CLI for the agent loop
+- Anthropic Python SDK (`anthropic`) for the agent loop
 
 ---
 
@@ -101,7 +94,6 @@ The `docs/` directory contains the full design and implementation record for thi
 
 | File | Purpose |
 |------|---------|
-| `docs/delivery_manager_mcp_project_def.md` | Original project definition and brief — context, motivation, and design decisions |
 | `docs/spec.md` | Feature and demo spec — authoritative source for what is built and why |
 | `docs/engineering_spec.md` | Implementation spec — file layout, schema, query contracts, tool/resource/prompt contracts, test cases |
 | `docs/tasks.md` | Implementation task list and progress tracker |

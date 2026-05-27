@@ -1,10 +1,14 @@
 import json
-import subprocess
-import uuid
 
+import anthropic
 import httpx
 
-from config import CLAUDE_MODEL, MCP_PORT
+from config import MCP_PORT
+
+_MODEL = "claude-haiku-4-5-20251001"
+_INPUT_COST_PER_M = 1.00   # USD per million tokens, May 2026
+_OUTPUT_COST_PER_M = 5.00  # USD per million tokens, May 2026
+_client = anthropic.Anthropic()
 
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp"
 
@@ -41,7 +45,7 @@ def _post(payload: dict) -> dict:
     return response.json()
 
 
-def initialize() -> None:
+def initialize() -> str:
     global _session_id
     payload = {
         "jsonrpc": "2.0",
@@ -57,13 +61,23 @@ def initialize() -> None:
     response.raise_for_status()
     _session_id = response.headers.get("Mcp-Session-Id")
 
-    _post(
-        {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {},
-        }
-    )
+    server_name = "unknown"
+    if response.content:
+        content_type = response.headers.get("content-type", "")
+        if "text/event-stream" in content_type:
+            for line in response.text.splitlines():
+                if line.startswith("data:"):
+                    data = json.loads(line[5:].strip())
+                    server_name = (
+                        data.get("result", {}).get("serverInfo", {}).get("name", "unknown")
+                    )
+                    break
+        else:
+            data = response.json()
+            server_name = data.get("result", {}).get("serverInfo", {}).get("name", "unknown")
+
+    _post({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
+    return server_name
 
 
 def read_resource(uri: str) -> list:
@@ -103,6 +117,47 @@ def call_get_task(task_id: str) -> dict:
     if isinstance(content, list):
         return json.loads(content[0]["text"])
     return json.loads(content)
+
+
+def list_tools() -> list[dict]:
+    result = _post({"jsonrpc": "2.0", "id": _next_id(), "method": "tools/list", "params": {}})
+    tools = []
+    for t in result["result"]["tools"]:
+        tools.append({
+            "name": t["name"],
+            "description": t.get("description", ""),
+            "input_schema": t["inputSchema"],
+        })
+    return tools
+
+
+def list_resources() -> list[str]:
+    result = _post(
+        {"jsonrpc": "2.0", "id": _next_id(), "method": "resources/list", "params": {}}
+    )
+    return [r["uri"] for r in result["result"]["resources"]]
+
+
+def list_prompts() -> list[str]:
+    result = _post(
+        {"jsonrpc": "2.0", "id": _next_id(), "method": "prompts/list", "params": {}}
+    )
+    return [p["name"] for p in result["result"]["prompts"]]
+
+
+def call_tool(name: str, arguments: dict) -> str:
+    result = _post(
+        {
+            "jsonrpc": "2.0",
+            "id": _next_id(),
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments},
+        }
+    )
+    content = result["result"]["content"]
+    if isinstance(content, list):
+        return content[0]["text"] if content else ""
+    return str(content)
 
 
 # ---------------------------------------------------------------------------
@@ -182,93 +237,66 @@ def display_delta(before_data: list, after_data: list) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _run_claude(cmd: list[str]) -> dict:
-    final_event: dict | None = None
-    lines: list[str] = []
+def _run_agent(messages: list, tools: list[dict]) -> dict:
+    total_input, total_output = 0, 0
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    for raw in proc.stdout:
-        raw = raw.rstrip()
-        if not raw:
-            continue
-        lines.append(raw)
-        try:
-            event = json.loads(raw)
-        except json.JSONDecodeError:
-            continue
+    while True:
+        print("\n  [Assistant]")
+        had_text = False
+        with _client.messages.stream(
+            model=_MODEL,
+            max_tokens=1024,
+            tools=tools,
+            messages=messages,
+        ) as stream:
+            for chunk in stream.text_stream:
+                print(chunk.replace("\n", "\n  "), end="", flush=True)
+                had_text = True
+            response = stream.get_final_message()
 
-        etype = event.get("type")
+        total_input += response.usage.input_tokens
+        total_output += response.usage.output_tokens
 
-        if etype == "system" and event.get("subtype") == "init":
-            for srv in event.get("mcp_servers", []):
-                print(f"  MCP: {srv.get('name')} ({srv.get('status', 'unknown')})")
+        tool_uses = [b for b in response.content if b.type == "tool_use"]
+        if not tool_uses:
+            break
 
-        elif etype == "assistant":
-            content = event.get("message", {}).get("content", [])
-            texts = [b["text"] for b in content if b.get("type") == "text" and b.get("text")]
-            calls = [b for b in content if b.get("type") == "tool_use"]
-            if texts or calls:
-                print("\n  [Assistant]")
-            if texts:
-                print(texts[0].replace("\n", "\n  "))
-            for c in calls:
-                print(f"    → {c['name']}({json.dumps(c.get('input', {}))})")
+        if had_text:
+            print()
 
-        elif etype == "user":
-            for block in event.get("message", {}).get("content", []):
-                if block.get("type") == "tool_result":
-                    rc = block.get("content", "")
-                    if isinstance(rc, list):
-                        rc = rc[0].get("text", "") if rc else ""
-                    print(f"\n  [Tool]\n    ← {rc}")
+        tool_results = []
+        for tool_use in tool_uses:
+            print(f"    → {tool_use.name}({json.dumps(tool_use.input)})")
+            result_text = call_tool(tool_use.name, tool_use.input)
+            print(f"\n  [Tool]\n    ← {result_text}")
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use.id,
+                "content": result_text,
+            })
 
-        elif etype == "result":
-            final_event = event
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": tool_results})
 
-    proc.wait()
-
-    if not final_event:
-        print("".join(lines))
-        return {"result": "(no result text)", "num_turns": 0, "cost": 0.0, "usage": {}}
-
+    cost = (
+        (total_input / 1_000_000) * _INPUT_COST_PER_M
+        + (total_output / 1_000_000) * _OUTPUT_COST_PER_M
+    )
     return {
-        "result": final_event.get("result", "(no result text)"),
-        "num_turns": final_event.get("num_turns", "?"),
-        "cost": final_event.get("total_cost_usd", 0),
-        "usage": final_event.get("usage", {}),
+        "cost": cost,
+        "usage": {"input_tokens": total_input, "output_tokens": total_output},
+        "messages": messages,
     }
 
 
-def run_claude_p(prompt_text: str, session_uuid: str) -> dict:
-    cmd = [
-        "claude",
-        "-p",
-        "--model",
-        CLAUDE_MODEL,
-        "--session-id",
-        session_uuid,
-        "--verbose",
-        "--output-format",
-        "stream-json",
-        prompt_text,
-    ]
-    return _run_claude(cmd)
+def run_agent(prompt_text: str, tools: list[dict]) -> dict:
+    messages = [{"role": "user", "content": prompt_text}]
+    return _run_agent(messages, tools)
 
 
-def run_claude_p_resume(session_uuid: str, message: str) -> dict:
-    cmd = [
-        "claude",
-        "-p",
-        "--model",
-        CLAUDE_MODEL,
-        "--resume",
-        session_uuid,
-        "--verbose",
-        "--output-format",
-        "stream-json",
-        message,
-    ]
-    return _run_claude(cmd)
+def run_agent_resume(message: str, tools: list[dict], prior_messages: list) -> dict:
+    messages = prior_messages + [{"role": "user", "content": message}]
+    return _run_agent(messages, tools)
 
 
 # ---------------------------------------------------------------------------
@@ -289,19 +317,22 @@ def verify_update(task_id: str, baseline_status: str) -> bool:
 def _print_summary(run_data: dict) -> None:
     usage = run_data.get("usage", {})
     inp = usage.get("input_tokens", 0)
-    cache_r = usage.get("cache_read_input_tokens", 0)
-    cache_w = usage.get("cache_creation_input_tokens", 0)
     out = usage.get("output_tokens", 0)
     print("\nUsage:")
-    print(f"  cost: ${run_data.get('cost', 0):.4f}")
-    print(
-        f"  tokens: {inp:,} input + {cache_r:,} cache_read + {cache_w:,} cache_write + {out:,} output"
-    )
+    print(f"  cost (May 2026): ${run_data.get('cost', 0):.4f}")
+    print(f"  tokens: {inp:,} input + {out:,} output")
 
 
 def main() -> None:
     print(f"Connecting to MCP server at {MCP_URL}...")
-    initialize()
+    server_name = initialize()
+    tools = list_tools()
+    resources = list_resources()
+    prompts = list_prompts()
+    print(f"\nMCP: {server_name}")
+    print(f"  Tools:     {', '.join(t['name'] for t in tools)}")
+    print(f"  Resources: {', '.join(resources)}")
+    print(f"  Prompts:   {', '.join(prompts)}")
 
     print("\nReading accounts resource...")
     data = read_resource("accounts://all")
@@ -317,20 +348,18 @@ def main() -> None:
     baseline_status = "blocked"
 
     print("\n=== MCP Prompt ===")
-    messages = get_prompt("assess-account", {"account_id": globex_id})
-    filled_prompt = messages[0]["content"]["text"]
+    prompt_messages = get_prompt("assess-account", {"account_id": globex_id})
+    filled_prompt = prompt_messages[0]["content"]["text"]
     print(f"\n{filled_prompt}")
 
-    session_uuid = str(uuid.uuid4())
     print("\n=== Agent ===")
-    print(f"\nRunning agent (session: {session_uuid})...")
-    run_data = run_claude_p(filled_prompt, session_uuid)
-    _print_summary(run_data)
+    run_data = run_agent(filled_prompt, tools)
 
     after_data = read_resource("accounts://all")
     display_delta(data, after_data)
     changed = verify_update(blocked_task_id, baseline_status)
     print(f"\nVerification: {'PASSED' if changed else 'FAILED'}")
+    _print_summary(run_data)
 
     if not changed:
         current = call_get_task(blocked_task_id)["status"]
@@ -343,13 +372,12 @@ def main() -> None:
         print("\n=== MCP Prompt ===")
         print(f"\n{retry_message}")
         print("\n=== Agent ===")
-        print(f"\nRunning agent (session: {session_uuid}, resume)...")
-        retry_data = run_claude_p_resume(session_uuid, retry_message)
-        _print_summary(retry_data)
+        retry_data = run_agent_resume(retry_message, tools, run_data["messages"])
         after_data = read_resource("accounts://all")
         display_delta(data, after_data)
         changed = verify_update(blocked_task_id, baseline_status)
         print(f"\nVerification: {'PASSED' if changed else 'FAILED'}")
+        _print_summary(retry_data)
 
     display_accounts(after_data)
 
