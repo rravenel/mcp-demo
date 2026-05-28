@@ -49,7 +49,7 @@ The demo sequence:
 
 2. **Prompt fetch** — `demo.py` calls the `assess-account` prompt template with Globex's account ID. The server-side handler calls `get_account_status` internally and returns a filled briefing: milestone status, actionable blocked tasks, days since last update.
 
-3. **Agent loop** — the agent receives the filled prompt and calls `update_task_status` to mark the blocked task as `pending_customer` (nudge action). The flow tool executes the cascade: task updated, milestone check runs, the `invalid` task prevents milestone advancement, structured result returned. The agent concludes: nudge sent, milestone blocked by invalid task, recommends admin review.
+3. **Agent loop** — the agent receives the filled prompt and calls `update_task_status` to mark the blocked task as `pending_customer` (nudge action). The flow tool executes the cascade: task updated, milestone check runs, the `invalid` task prevents milestone advancement, structured result returned. The agent confirms the update and notes the customer should be followed up with to expedite the compliance document submission.
 
 4. **Verification** — `demo.py` calls the `get_task` tool directly (outside the agent loop) to confirm the status change. If the update didn't happen, the agent is re-invoked with the full prior message history and a verification failure message appended, and it retries.
 
@@ -73,7 +73,7 @@ This is the Salesforce ISV architecture pattern: domain expertise encoded as a c
 
 ### The invalid task
 
-The `invalid` task on Globex's milestone can't be resolved by the agent — it requires admin intervention. The prompt explicitly excludes it; the model correctly ignores it. It remains in the milestone and prevents advancement. The tool reports this accurately; the agent surfaces it in its conclusion.
+The `invalid` task on Globex's milestone can't be resolved by the agent — it requires admin intervention. The prompt explicitly excludes it; the model correctly ignores it. It remains in the milestone and prevents advancement. The tool reports it in the `blocking_tasks` list in its response, but the agent's conclusion focuses solely on the actionable blocked task.
 
 This demonstrates that the system correctly identifies and communicates constraints rather than silently failing or unconditionally succeeding.
 
@@ -88,15 +88,16 @@ This demonstrates that the system correctly identifies and communicates constrai
 
 ---
 
-## Design documents
+## Design Process and Artifacts
 
-The `docs/` directory contains the full design and implementation record for this project.
+The `docs/` directory contains the full design and implementation record for this project. This project was implemented almost entirely by coding agents, and test time scaling was embodied in an iterative review cycle: every document draft was reviewed and updated until no further changes were indicated. Each review referenced the parent document in the cascade.
 
 | File | Purpose |
 |------|---------|
 | `docs/spec.md` | Feature and demo spec — authoritative source for what is built and why |
-| `docs/engineering_spec.md` | Implementation spec — file layout, schema, query contracts, tool/resource/prompt contracts, test cases |
-| `docs/tasks.md` | Implementation task list and progress tracker |
+| `docs/engineering_spec.md` | Implementation spec — file layout, schema, query contracts, tool/resource/prompt contracts, test cases.  Depends on spec.md. |
+| `docs/tasks.md` | Implementation task list and progress tracker. Depends on engineering_spec.md. |
+| `docs/agent_migration.md` | Design record for the `claude -p` → Anthropic API migration — motivation, trade-offs, and implementation notes |
 
 ---
 
