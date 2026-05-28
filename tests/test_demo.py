@@ -1,6 +1,9 @@
 from unittest.mock import patch
 
+import json
+
 import demo
+from db import TaskStatus
 
 
 # ---------------------------------------------------------------------------
@@ -9,13 +12,13 @@ import demo
 
 
 def test_verify_update_returns_true_when_status_changed():
-    with patch.object(demo, "call_get_task", return_value={"status": "pending_customer"}):
-        assert demo.verify_update("t1", "blocked") is True
+    with patch.object(demo, "call_tool", return_value=json.dumps({"status": "pending_customer"})):
+        assert demo.verify_update("t1", TaskStatus.BLOCKED) is True
 
 
 def test_verify_update_returns_false_when_status_unchanged():
-    with patch.object(demo, "call_get_task", return_value={"status": "blocked"}):
-        assert demo.verify_update("t1", "blocked") is False
+    with patch.object(demo, "call_tool", return_value=json.dumps({"status": "blocked"})):
+        assert demo.verify_update("t1", TaskStatus.BLOCKED) is False
 
 
 # ---------------------------------------------------------------------------

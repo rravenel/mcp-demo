@@ -28,7 +28,7 @@ This is a deliberate demonstration, not a general-purpose application. Auth, mul
 ./demo.sh
 ```
 
-The script installs the pinned Claude Code version, installs Python dependencies, seeds the database (resetting to a clean state on each run), starts the MCP server, runs the demo, and shuts everything down on exit.
+The script installs Python dependencies, seeds the database (resetting to a clean state on each run), starts the MCP server, runs the demo, and shuts everything down on exit.
 
 **Stop the server early** (if you interrupt the demo mid-run):
 ```bash
@@ -51,7 +51,7 @@ The demo sequence:
 
 3. **Agent loop** — the agent receives the filled prompt and calls `update_task_status` to mark the blocked task as `pending_customer` (nudge action). The flow tool executes the cascade: task updated, milestone check runs, the `invalid` task prevents milestone advancement, structured result returned. The agent concludes: nudge sent, milestone blocked by invalid task, recommends admin review.
 
-4. **Verification** — `demo.py` calls `get_task` to confirm the status change. If the update didn't happen, the session is resumed (leveraging prompt cache) with the verification result, and the agent retries.
+4. **Verification** — `demo.py` calls the `get_task` tool directly (outside the agent loop) to confirm the status change. If the update didn't happen, the agent is re-invoked with the full prior message history and a verification failure message appended, and it retries.
 
 5. **Final resource fetch** — `accounts://all` is fetched again. The blocked→pending_customer delta is visible in the output.
 

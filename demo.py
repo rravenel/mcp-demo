@@ -4,6 +4,7 @@ import anthropic
 import httpx
 
 from config import MCP_PORT
+from db import TaskStatus
 
 _MODEL = "claude-haiku-4-5-20251001"
 _INPUT_COST_PER_M = 1.00   # USD per million tokens, May 2026
@@ -28,6 +29,13 @@ _BASE_HEADERS = {
 }
 
 
+def _parse_sse_body(text: str) -> dict:
+    for line in text.splitlines():
+        if line.startswith("data:"):
+            return json.loads(line[5:].strip())
+    return {}
+
+
 def _post(payload: dict) -> dict:
     headers = dict(_BASE_HEADERS)
     if _session_id:
@@ -36,12 +44,8 @@ def _post(payload: dict) -> dict:
     response.raise_for_status()
     if not response.content:
         return {}
-    content_type = response.headers.get("content-type", "")
-    if "text/event-stream" in content_type:
-        for line in response.text.splitlines():
-            if line.startswith("data:"):
-                return json.loads(line[5:].strip())
-        return {}
+    if "text/event-stream" in response.headers.get("content-type", ""):
+        return _parse_sse_body(response.text)
     return response.json()
 
 
@@ -63,18 +67,11 @@ def initialize() -> str:
 
     server_name = "unknown"
     if response.content:
-        content_type = response.headers.get("content-type", "")
-        if "text/event-stream" in content_type:
-            for line in response.text.splitlines():
-                if line.startswith("data:"):
-                    data = json.loads(line[5:].strip())
-                    server_name = (
-                        data.get("result", {}).get("serverInfo", {}).get("name", "unknown")
-                    )
-                    break
+        if "text/event-stream" in response.headers.get("content-type", ""):
+            data = _parse_sse_body(response.text)
         else:
             data = response.json()
-            server_name = data.get("result", {}).get("serverInfo", {}).get("name", "unknown")
+        server_name = data.get("result", {}).get("serverInfo", {}).get("name", "unknown")
 
     _post({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
     return server_name
@@ -102,21 +99,6 @@ def get_prompt(name: str, arguments: dict) -> list:
         }
     )
     return result["result"]["messages"]
-
-
-def call_get_task(task_id: str) -> dict:
-    result = _post(
-        {
-            "jsonrpc": "2.0",
-            "id": _next_id(),
-            "method": "tools/call",
-            "params": {"name": "get_task", "arguments": {"task_id": task_id}},
-        }
-    )
-    content = result["result"]["content"]
-    if isinstance(content, list):
-        return json.loads(content[0]["text"])
-    return json.loads(content)
 
 
 def list_tools() -> list[dict]:
@@ -165,31 +147,6 @@ def call_tool(name: str, arguments: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-def display_accounts(resource_data: list) -> None:
-    print("\n=== Account Overview ===")
-    for item in resource_data:
-        raw = item.get("text") or item
-        if isinstance(raw, str):
-            raw = json.loads(raw)
-        accounts = raw if isinstance(raw, list) else [raw]
-        for acct in accounts:
-            print(f"\nAccount: {acct['name']} [{acct['status']}]")
-            proj = acct.get("project")
-            if not proj:
-                print("  No active project")
-                continue
-            print(f"  Project: {proj['name']} [{proj['status']}]")
-            ms = proj.get("milestone")
-            if not ms:
-                print("    No current milestone")
-                continue
-            print(f"  Milestone: {ms['name']} [{ms['status']}]")
-            for task in ms.get("tasks", []):
-                blocker = f" | blocker: {task['blocker']}" if task.get("blocker") else ""
-                owner = f" | owner: {task['owner']}" if task.get("owner") else ""
-                print(f"    - [{task['status']}] {task['title']}{owner}{blocker}")
-
-
 def _parse_accounts(resource_data: list) -> list:
     result = []
     for item in resource_data:
@@ -201,6 +158,26 @@ def _parse_accounts(resource_data: list) -> list:
         else:
             result.append(raw)
     return result
+
+
+def display_accounts(resource_data: list) -> None:
+    print("\n=== Account Overview ===")
+    for acct in _parse_accounts(resource_data):
+        print(f"\nAccount: {acct['name']} [{acct['status']}]")
+        proj = acct.get("project")
+        if not proj:
+            print("  No current project")
+            continue
+        print(f"  Project: {proj['name']} [{proj['status']}]")
+        ms = proj.get("milestone")
+        if not ms:
+            print("    No current milestone")
+            continue
+        print(f"  Milestone: {ms['name']} [{ms['status']}]")
+        for task in ms.get("tasks", []):
+            blocker = f" | blocker: {task['blocker']}" if task.get("blocker") else ""
+            owner = f" | owner: {task['owner']}" if task.get("owner") else ""
+            print(f"    - [{task['status']}] {task['title']}{owner}{blocker}")
 
 
 def display_delta(before_data: list, after_data: list) -> None:
@@ -304,8 +281,8 @@ def run_agent_resume(message: str, tools: list[dict], prior_messages: list) -> d
 # ---------------------------------------------------------------------------
 
 
-def verify_update(task_id: str, baseline_status: str) -> bool:
-    task = call_get_task(task_id)
+def verify_update(task_id: str, baseline_status: TaskStatus) -> bool:
+    task = json.loads(call_tool("get_task", {"task_id": task_id}))
     return task["status"] != baseline_status
 
 
@@ -343,12 +320,16 @@ def main() -> None:
     globex_id = globex["id"]
 
     tasks = globex["project"]["milestone"]["tasks"]
-    blocked_task = next(t for t in tasks if t["status"] == "blocked")
+    blocked_task = next((t for t in tasks if t["status"] == TaskStatus.BLOCKED), None)
+    if blocked_task is None:
+        raise RuntimeError("No blocked task in Globex milestone — re-seed: uv run python seed.py")
     blocked_task_id = blocked_task["id"]
-    baseline_status = "blocked"
+    baseline_status = TaskStatus.BLOCKED
 
     print("\n=== MCP Prompt ===")
     prompt_messages = get_prompt("assess-account", {"account_id": globex_id})
+    if not prompt_messages:
+        raise RuntimeError("assess-account prompt returned no messages")
     filled_prompt = prompt_messages[0]["content"]["text"]
     print(f"\n{filled_prompt}")
 
@@ -362,7 +343,7 @@ def main() -> None:
     _print_summary(run_data)
 
     if not changed:
-        current = call_get_task(blocked_task_id)["status"]
+        current = json.loads(call_tool("get_task", {"task_id": blocked_task_id}))["status"]
         retry_message = (
             f"Verification: task {blocked_task_id} status is still '{baseline_status}' — "
             f"update_task_status was not called or did not succeed. "
